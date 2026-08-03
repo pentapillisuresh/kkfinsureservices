@@ -3,6 +3,7 @@ const sequelize = require('../config/database');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 const {User} = require('../models');
 const {Investment} = require('../models');
+const {Nominee} = require('../models');
 const {Plan} = require('../models');
 const {Document} = require('../models');
 const {BalanceSheet} = require('../models');

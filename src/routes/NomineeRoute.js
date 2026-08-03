@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 const nomineeController = require('../controllers/nomineeController');
-const upload = require('../middleware/upload');
+
 // User views own nominee
 router.get('/my', authenticate, nomineeController.getMyNominee);
 
