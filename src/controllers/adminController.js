@@ -37,7 +37,8 @@ const getAllUsers = async (req, res) => {
       attributes: { exclude: ['password'] },
       include: [
         { model: User, as: 'creator', attributes: ['id', 'fullName', 'email'] },
-        { model: Nominee, as: 'nominee' }
+        { model: Nominee, as: 'nominee' },
+        { model: BankDetail, as: 'bankDetails' },
       ],
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -68,6 +69,7 @@ const getUserDetails = async (req, res) => {
       attributes: { exclude: ['password'] },
       include: [
         { model: Nominee, as: 'nominee' },
+        { model: BankDetail, as: 'bankDetails' },
         { model: User, as: 'creator', attributes: ['id', 'fullName', 'email'] },
         { model: Investment, as: 'investments' }
       ]
