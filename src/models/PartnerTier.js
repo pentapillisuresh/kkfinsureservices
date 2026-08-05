@@ -10,7 +10,7 @@ module.exports = (sequelize) => {
     name: {
       type: DataTypes.ENUM('referral', 'authorised', 'hni'),
       allowNull: false,
-      unique: true
+      // unique: true
     },
     minInvestment: {
       type: DataTypes.DECIMAL(15, 2),

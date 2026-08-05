@@ -11,7 +11,6 @@ const uploadSingle = async (req, res) => {
     if (!req.file) {
       return errorResponse(res, 'No file uploaded', 400);
     }
-
     let filePath = req.file.path;
     const isImage = req.file.mimetype.startsWith('image/');
 
@@ -28,8 +27,11 @@ const uploadSingle = async (req, res) => {
       fs.unlinkSync(filePath);
       filePath = resizedPath;
     }
-
-    const fullUrl = `${process.env.BASE_URL}/${filePath.replace(/\\/g, '/')}`;
+    const relativePath = req.file.path
+    .split(`${path.sep}uploads${path.sep}`)[1]
+    .replace(/\\/g, "/");
+    
+    const fullUrl = `uploads/${relativePath}`;
     return successResponse(res, {
       filePath: fullUrl,
       originalName: req.file.originalname,

@@ -2,9 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
+const adminDashboardController = require('../controllers/adminDashboardController');
 
 // All admin routes require authentication and admin role
 router.use(authenticate, authorizeAdmin);
+
+// --- Dashboard ---
+router.get('/dashboard', adminDashboardController.getDashboardData);
 
 // User management
 router.get('/users', adminController.getAllUsers);

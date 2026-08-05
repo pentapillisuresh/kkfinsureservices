@@ -24,6 +24,7 @@ const getProfile = async (req, res) => {
       include: [
         { model: Nominee, as: 'nominee' },
         { model: BankDetail, as: 'bankDetail' },
+        { model: Document, as: 'documents' },
         { model: User, as: 'creator', attributes: ['id', 'fullName', 'email'] }
       ]
     });

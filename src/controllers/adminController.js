@@ -10,6 +10,8 @@ const {BalanceSheet} = require('../models');
 const {Return} = require('../models');
 const {Referral} = require('../models');
 const {Ticket} = require('../models');
+const {BankDetail} = require('../models');
+
 const { formatDate, calculateMaturityDate } = require('../utils/helpers');
 
 /**
@@ -38,7 +40,8 @@ const getAllUsers = async (req, res) => {
       include: [
         { model: User, as: 'creator', attributes: ['id', 'fullName', 'email'] },
         { model: Nominee, as: 'nominee' },
-        { model: BankDetail, as: 'bankDetails' },
+        { model: BankDetail, as: 'bankDetail' },
+        { model: Document, as: 'documents' },
       ],
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -69,9 +72,10 @@ const getUserDetails = async (req, res) => {
       attributes: { exclude: ['password'] },
       include: [
         { model: Nominee, as: 'nominee' },
-        { model: BankDetail, as: 'bankDetails' },
+        { model: BankDetail, as: 'bankDetail' },
         { model: User, as: 'creator', attributes: ['id', 'fullName', 'email'] },
-        { model: Investment, as: 'investments' }
+        { model: Investment, as: 'investments' },
+        { model: Document, as: 'documents' },
       ]
     });
 

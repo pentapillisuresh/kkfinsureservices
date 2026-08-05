@@ -1,4 +1,5 @@
 const { DataTypes } = require('sequelize');
+const { Op } = require('sequelize');
 
 module.exports = (sequelize) => {
   const Investment = sequelize.define('Investment', {
