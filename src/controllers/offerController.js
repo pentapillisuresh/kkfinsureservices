@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
-const {Offer} = require('../models');
-const {Referral} = require('../models');
-const {UserPoint} = require('../models');
+const { Offer } = require('../models');
+const { Referral } = require('../models');
+const { UserPoint } = require('../models');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 
 /**
@@ -93,6 +93,31 @@ const getActiveOffers = async (req, res) => {
   }
 };
 
+const getAllOffers = async (req, res) => {
+  try {
+    console.log("Fetching all offers...");
+
+    const offers = await Offer.findAll({
+      order: [["createdAt", "DESC"]],
+    });
+
+    console.log("Offers:", offers);
+
+    return successResponse(
+      res,
+      offers,
+      "Offers fetched successfully"
+    );
+  } catch (error) {
+    console.error("Error fetching offers:", error);
+
+    return errorResponse(
+      res,
+      error.message || "Failed to fetch offers",
+      500
+    );
+  }
+};
 /**
  * Get offer by ID (authenticated)
  */
@@ -179,5 +204,6 @@ module.exports = {
   getActiveOffers,
   getOfferById,
   toggleOfferStatus,
+  getAllOffers,
   applyOfferToReferral
 };

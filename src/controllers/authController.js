@@ -49,8 +49,7 @@ const createUser = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-console.log("email::",email)
-console.log("password::",password)
+
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return errorResponse(res, 'Invalid credentials', 401);

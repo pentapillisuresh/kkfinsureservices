@@ -19,6 +19,10 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       validate: { is: /^[0-9]{10}$/ }
     },
+    aadhar: {
+      type: DataTypes.STRING,
+      validate: { is: /^[0-9]{12}$/ }
+    },
     email: {
       type: DataTypes.STRING,
       validate: { isEmail: true }

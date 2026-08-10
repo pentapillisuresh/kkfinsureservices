@@ -246,9 +246,7 @@ async function startServer() {
     }
 }
 
-if (require.main === module) {
     startServer();
-}
 
 module.exports = {
     app,

@@ -12,6 +12,10 @@ module.exports = (sequelize) => {
       allowNull: false,
       references: { model: 'Users', key: 'id' }
     },
+    balanceSheetFile: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
     periodStart: {
       type: DataTypes.DATE,
       allowNull: false

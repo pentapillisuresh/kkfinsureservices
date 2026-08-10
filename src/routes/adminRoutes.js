@@ -29,6 +29,7 @@ router.delete('/company-documents/:id', adminController.deleteCompanyDocument);
 
 // Generate balance sheet for a user
 router.post('/balance-sheet/generate', adminController.generateBalanceSheet);
+router.get('/balance-sheet/all', adminController.getAllBalanceSheet);
 
 // Additional admin-only routes (if needed)
 router.get('/logs', adminController.getAuditLogs);

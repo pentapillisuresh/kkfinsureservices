@@ -3,6 +3,7 @@ const {Investment} = require('../models');
 const {User} = require('../models');
 const {Plan} = require('../models');
 const {Referral} = require('../models');
+const {Return} = require('../models');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 const { calculateMaturityDate } = require('../utils/helpers');
 

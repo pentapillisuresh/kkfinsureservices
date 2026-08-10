@@ -3,12 +3,14 @@ const router = express.Router();
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 const offerController = require('../controllers/offerController');
 
+console.log("offer")
 // Any authenticated user can view active offers
-router.get('/', authenticate, offerController.getActiveOffers);
+router.get('/', authenticate, offerController.getAllOffers);
 router.get('/:id', authenticate, offerController.getOfferById);
 
 // Admin-only
 router.post('/', authenticate, authorizeAdmin, offerController.createOffer);
+router.get('/all/Active', authenticate, authorizeAdmin, offerController.getActiveOffers);
 router.put('/:id', authenticate, authorizeAdmin, offerController.updateOffer);
 router.delete('/:id', authenticate, authorizeAdmin, offerController.deleteOffer);
 router.patch('/:id/status', authenticate, authorizeAdmin, offerController.toggleOfferStatus);

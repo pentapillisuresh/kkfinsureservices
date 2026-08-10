@@ -155,14 +155,14 @@ const getUserDocuments = async (req, res) => {
 const updateDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, type } = req.body;
+    const { title, type,filePath } = req.body;
 
     const document = await Document.findByPk(id);
     if (!document) {
       return errorResponse(res, 'Document not found', 404);
     }
 
-    await document.update({ title, type });
+    await document.update({ title, type,filePath });
     return successResponse(res, document, 'Document updated successfully');
   } catch (error) {
     return errorResponse(res, error.message, 500);

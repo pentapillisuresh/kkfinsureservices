@@ -17,7 +17,7 @@ module.exports = (sequelize) => {
       allowNull: false,
       references: { model: 'Users', key: 'id' }
     },
-    investmentAmount: {
+    investmentAmount: { 
       type: DataTypes.DECIMAL(15, 2)
     },
     rewardPoints: {

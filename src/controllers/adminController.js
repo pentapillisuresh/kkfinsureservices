@@ -75,6 +75,7 @@ const getUserDetails = async (req, res) => {
         { model: BankDetail, as: 'bankDetail' },
         { model: User, as: 'creator', attributes: ['id', 'fullName', 'email'] },
         { model: Investment, as: 'investments' },
+        { model: Return, as: 'returns' },
         { model: Document, as: 'documents' },
       ]
     });
@@ -95,7 +96,7 @@ const getUserDetails = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { fullName, phone, dateOfBirth, pan, aadhar, address, nomineeId, isSeniorCitizen, partnerType, partnerCommissionRate, isActive } = req.body;
+    const { fullName, phone, dateOfBirth,batchId, pan, aadhar, address, nomineeId, isSeniorCitizen, partnerType, partnerCommissionRate, isActive } = req.body;
 
     const user = await User.findByPk(id);
     if (!user) {
@@ -109,6 +110,7 @@ const updateUser = async (req, res) => {
       dateOfBirth: dateOfBirth || user.dateOfBirth,
       pan: pan || user.pan,
       aadhar: aadhar || user.aadhar,
+      batchId: batchId || user.batchId,
       address: address || user.address,
       nomineeId: nomineeId || user.nomineeId,
       isSeniorCitizen: isSeniorCitizen !== undefined ? isSeniorCitizen : user.isSeniorCitizen,
@@ -333,6 +335,48 @@ const generateBalanceSheet = async (req, res) => {
   }
 };
 
+const getAllBalanceSheet = async (req, res) => {
+  try {
+    const { userId, start, end, page = 1 } = req.body;
+
+    const limit = 10;
+    const currentPage = Math.max(parseInt(page, 10) || 1, 1);
+    const offset = (currentPage - 1) * limit;
+
+    const { count, rows: balanceSheetReturns } =
+      await BalanceSheet.findAndCountAll({
+        limit,
+        offset,
+        order: [["createdAt", "DESC"]],
+      });
+
+    const totalPages = Math.ceil(count / limit);
+
+    return successResponse(
+      res,
+      {
+        data: balanceSheetReturns,
+        pagination: {
+          currentPage,
+          perPage: limit,
+          totalItems: count,
+          totalPages,
+          hasNextPage: currentPage < totalPages,
+          hasPreviousPage: currentPage > 1,
+        },
+      },
+      "Balance sheet generated successfully"
+    );
+  } catch (error) {
+    console.error("Get balance sheet error:", error);
+
+    return errorResponse(
+      res,
+      error.message || "Failed to fetch balance sheet",
+      500
+    );
+  }
+};
 /**
  * Get audit logs (placeholder)
  */
@@ -352,5 +396,6 @@ module.exports = {
   getCompanyDocuments,
   deleteCompanyDocument,
   generateBalanceSheet,
+  getAllBalanceSheet,
   getAuditLogs
 };
