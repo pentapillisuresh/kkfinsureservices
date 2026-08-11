@@ -10,7 +10,7 @@ const { successResponse, errorResponse } = require('../middleware/responseFormat
  */
 const createUser = async (req, res) => {
   try {
-    const { email, password, fullName, phone, dateOfBirth, pan, aadhar, address, isSeniorCitizen } = req.body;
+    const { email, password, fullName, phone, dateOfBirth, pan, aadhar, address, isSeniorCitizen, referrerId } = req.body;
 
     // Check if email already exists
     const existingUser = await User.findOne({ where: { email } });
@@ -26,6 +26,7 @@ const createUser = async (req, res) => {
       dateOfBirth,
       pan,
       aadhar,
+      referrerId,
       address,
       isSeniorCitizen: isSeniorCitizen || false,
       createdBy: req.user.id // admin who creates

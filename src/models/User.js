@@ -10,7 +10,7 @@ module.exports = (sequelize, D) => {
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true
     },
-    email: { 
+    email: {
       type: DataTypes.STRING,
       allowNull: false,
       // unique: true,
@@ -55,6 +55,10 @@ module.exports = (sequelize, D) => {
     isSeniorCitizen: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
+    },
+    referrerId: {
+      type: DataTypes.UUID,
+      allowNull: true,
     },
     partnerType: {
       type: DataTypes.ENUM('referral', 'authorised', 'hni', 'none'),

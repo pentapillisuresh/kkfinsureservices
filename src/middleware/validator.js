@@ -36,6 +36,7 @@ const schemas = {
     pan: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/),
     aadhar: Joi.string().pattern(/^[0-9]{12}$/),
     address: Joi.string(),
+    referrerId: Joi.string().uuid().optional().allow(null),
     isSeniorCitizen: Joi.boolean()
   }),
   changePassword: Joi.object({

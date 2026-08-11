@@ -6,6 +6,8 @@ const path = require('path');
 require('dotenv').config();
 
 const sequelize = require('./src/config/database');
+const { PartnerTier } = require('./src/models');
+const { User } = require('./src/models');
 
 // Middleware
 const errorHandler = require('./src/middleware/errorHandler');
@@ -172,7 +174,6 @@ app.use(errorHandler);
 
 async function createAdminIfNotExists() {
     try {
-        const { User } = require('./src/models');
 
         const email = process.env.ADMIN_EMAIL || 'admin@kkinsure.com';
 
@@ -202,7 +203,51 @@ async function createAdminIfNotExists() {
         console.error('Admin Seeder Error:', err);
     }
 }
+/* ===========================================================
+   Parner Seeder
+=========================================================== */
 
+// src/utils/seedPartnerTiers.js
+
+async function seedPartnerTiers() {
+  try {
+    const count = await PartnerTier.count();
+    if (count > 0) {
+      console.log('✅ Partner tiers already exist');
+      return;
+    }
+
+    await PartnerTier.bulkCreate([
+      {
+        name: 'referral',
+        minInvestment: 100000,
+        maxInvestment: 1000000,
+        commissionRate: 1.0,
+        isActive: true,
+      },
+      {
+        name: 'authorised',
+        minInvestment: 100000,
+        maxInvestment: 1000000,
+        commissionRate: 1.5,
+        isActive: true,
+      },
+      {
+        name: 'hni',
+        minInvestment: 100000,
+        maxInvestment: 1000000,
+        commissionRate: 2.5,
+        isActive: true,
+      },
+    ]);
+
+    console.log('✅ Partner tiers seeded successfully');
+  } catch (error) {
+    console.error('Partner Tier Seeder Error:', error);
+  }
+}
+
+module.exports = seedPartnerTiers;
 /* ===========================================================
    Start Server
 =========================================================== */
@@ -221,6 +266,7 @@ async function startServer() {
         console.log('✅ Database Synced');
 
         await createAdminIfNotExists();
+        await seedPartnerTiers();
 
         app.listen(PORT, () => {
             console.log('=================================');

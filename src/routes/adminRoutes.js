@@ -12,6 +12,7 @@ router.get('/dashboard', adminDashboardController.getDashboardData);
 
 // User management
 router.get('/users', adminController.getAllUsers);
+router.get('/usersForDropdown', adminController.getDropdownUsers); 
 router.get('/users/:id', adminController.getUserDetails);
 router.put('/users/:id', adminController.updateUser);
 router.put('/users/:id/status', adminController.toggleUserStatus);

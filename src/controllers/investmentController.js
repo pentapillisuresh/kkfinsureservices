@@ -1,86 +1,135 @@
 const { Op } = require('sequelize');
-const {Investment} = require('../models');
-const {User} = require('../models');
-const {Plan} = require('../models');
-const {Referral} = require('../models');
-const {Return} = require('../models');
+const { Investment } = require('../models');
+const { User } = require('../models');
+const { Plan } = require('../models');
+const { Referral } = require('../models');
+const { Offer } = require('../models');
+const { Return } = require('../models');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 const { calculateMaturityDate } = require('../utils/helpers');
+const sequelize = require('../config/database');
 
 /**
  * Create a new investment (admin only)
  */
+
 const createInvestment = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const { userId, planId, amount, investmentDate } = req.body;
 
-    // Validate user
-    const user = await User.findByPk(userId);
+    // 1. Validate user
+    const user = await User.findByPk(userId, { transaction });
     if (!user) {
+      await transaction.rollback();
       return errorResponse(res, 'User not found', 404);
     }
 
-    // Validate plan
-    const plan = await Plan.findByPk(planId);
+    // 2. Validate plan
+    const plan = await Plan.findByPk(planId, { transaction });
     if (!plan) {
-      return errorResponse(res, 'plan not found', 404);
+      await transaction.rollback();
+      return errorResponse(res, 'Plan not found', 404);
     }
-
     if (!plan.isActive) {
-      return errorResponse(res, 'plan is not active', 400);
+      await transaction.rollback();
+      return errorResponse(res, 'Plan is not active', 400);
     }
 
-    // Validate amount range
+    // 3. Validate amount range
     if (amount < plan.minInvestment || amount > plan.maxInvestment) {
+      await transaction.rollback();
       return errorResponse(res, `Investment amount must be between ${plan.minInvestment} and ${plan.maxInvestment}`, 400);
     }
 
-    // Calculate maturity date
-    const maturityDate = calculateMaturityDate(new Date(investmentDate), plan.maturityPeriod);
+    // 4. Calculate maturity date
+    const investmentDateObj = new Date(investmentDate);
+    const maturityDate = calculateMaturityDate(investmentDateObj, plan.maturityPeriod);
 
+    // 5. Create investment
     const investment = await Investment.create({
       userId,
       planId,
       amount,
-      investmentDate: new Date(investmentDate),
+      investmentDate: investmentDateObj,
       maturityDate,
       status: 'active'
-    });
+    }, { transaction });
 
-    // Update referral rewards if user was referred
-    // Check if this user was referred by someone
-    const referral = await Referral.findOne({
-      where: { referredUserId: userId, investmentAmount: null }
-    });
+    // 6. Create referral if user has referrerId
+    if (user.referrerId) {
+      const rewardValue = (amount / 100).toFixed(2);
+      const rewardPoints = Math.round(amount / 100);
 
-    if (referral) {
-      // Update referral with investment amount and award points
-      referral.investmentAmount = amount;
-      // Determine reward based on some logic (could be from Offer)
-      // For now, award 1 point per 1000 rupees invested
-      const points = Math.floor(amount / 1000);
-      referral.rewardPoints = points;
-      await referral.save();
+      // Find applicable offer
+      const now = new Date();
+      let applicableOffer = null;
+      const activeOffers = await Offer.findAll({ where: { isActive: true }, transaction });
+      for (const offer of activeOffers) {
+        const conditions = offer.conditions || {};
+        if (conditions.minInvestment && amount < conditions.minInvestment) continue;
+        if (conditions.expiryDate && new Date(conditions.expiryDate) < now) continue;
+        applicableOffer = offer;
+        break;
+      }
 
-      // Also add points to referrer's UserPoint
-      await UserPoint.create({
-        userId: referral.referrerId,
-        points: points,
-        source: 'referral',
-        referenceId: referral.id,
-        description: `Referral reward for investment of ₹${amount}`
-      });
+      await Referral.create({
+        referrerId: user.referrerId,
+        referredUserId: user.id,
+        investmentAmount: amount,
+        rewardPoints,
+        rewardValue,
+        expireDate:investment.maturityDate,
+        offerId: applicableOffer ? applicableOffer.id : null,
+        rewardType: applicableOffer ? applicableOffer.rewardType : 'points',
+      }, { transaction });
     }
 
-    // If user is a partner (referrer), their commission base will be updated in scheduled job
-    // So no immediate action needed
+    // 7. Generate Returns
+    const monthlyReturnAmount = (amount * plan.monthlyReturnPercent) / 100;
+    const isSenior = user.isSeniorCitizen;
 
+    const firstReturnMonth = new Date(investmentDateObj.getFullYear(), investmentDateObj.getMonth() + 1, 1);
+    const lastReturnMonth = new Date(maturityDate.getFullYear(), maturityDate.getMonth(), 1);
+
+    let currentMonth = new Date(firstReturnMonth);
+    while (currentMonth <= lastReturnMonth) {
+      let returnType = 'monthly';
+      let returnAmount = monthlyReturnAmount;
+
+      if (isSenior) {
+        const monthDiff = (currentMonth.getFullYear() - firstReturnMonth.getFullYear()) * 12 +
+                          (currentMonth.getMonth() - firstReturnMonth.getMonth());
+        if (monthDiff % 3 === 0) {
+          returnType = 'quarterly_senior';
+          returnAmount = monthlyReturnAmount * 3;
+        } else {
+          // Skip months that are not quarter starts
+          currentMonth.setMonth(currentMonth.getMonth() + 1);
+          continue;
+        }
+      }
+
+      await Return.create({
+        investmentId: investment.id,
+        userId: user.id,
+        month: currentMonth,
+        amount: returnAmount,
+        type: returnType,
+        paidOn: null, // pending
+      }, { transaction });
+
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
+    }
+
+    await transaction.commit();
     return successResponse(res, investment, 'Investment created successfully');
   } catch (error) {
+    await transaction.rollback();
+    console.error('Error creating investment:', error);
     return errorResponse(res, error.message, 500);
   }
 };
-
 /**
  * Update investment (admin only)
  */
@@ -147,7 +196,7 @@ const getAllInvestments = async (req, res) => {
     const { count, rows } = await Investment.findAndCountAll({
       where,
       include: [
-        { model: User, as: 'user', attributes: ['id', 'fullName', 'email','batchId'] },
+        { model: User, as: 'user', attributes: ['id', 'fullName', 'email', 'batchId'] },
         { model: Plan, as: 'plan' }
       ],
       limit: parseInt(limit),
@@ -163,6 +212,30 @@ const getAllInvestments = async (req, res) => {
         limit: parseInt(limit),
         totalPages: Math.ceil(count / limit)
       }
+    }, 'Investments fetched successfully');
+  } catch (error) {
+    return errorResponse(res, error.message, 500);
+  }
+};
+
+const getAllInvestmentsByUserID = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const where = {};
+    if (userId) where.userId = userId;
+    where.status = "active";
+
+    const investments = await Investment.findAll({
+      where,
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'fullName', 'email', 'batchId'] },
+        { model: Plan, as: 'plan' }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    return successResponse(res, {
+      investments,
     }, 'Investments fetched successfully');
   } catch (error) {
     return errorResponse(res, error.message, 500);
@@ -200,7 +273,7 @@ const getMyInvestments = async (req, res) => {
   try {
     const { status } = req.query;
     const where = { userId: req.user.id };
-    if (status) where.status = status ;
+    if (status) where.status = status;
 
     const investments = await Investment.findAll({
       where,
@@ -272,6 +345,7 @@ module.exports = {
   getAllInvestments,
   getInvestmentDetails,
   getMyInvestments,
+  getAllInvestmentsByUserID,
   getMyInvestmentById,
   uploadInvestmentDocs
 };

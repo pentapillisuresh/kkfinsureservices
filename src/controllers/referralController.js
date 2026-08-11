@@ -10,7 +10,7 @@ const { successResponse, errorResponse } = require('../middleware/responseFormat
  */
 const createReferral = async (req, res) => {
   try {
-    const { referrerId, referredUserId, investmentAmount, rewardType, rewardValue } = req.body;
+    const { referrerId, referredUserId, investmentAmount, rewardValue,rewardPoints,offerId } = req.body;
 
     // Validate users
     const referrer = await User.findByPk(referrerId);
@@ -24,44 +24,30 @@ const createReferral = async (req, res) => {
     }
 
     // Check if referral already exists
-    const existing = await Referral.findOne({
-      where: { referrerId, referredUserId }
-    });
-    if (existing) {
-      return errorResponse(res, 'Referral already exists', 400);
-    }
+    // const existing = await Referral.findOne({
+    //   where: { referrerId, referredUserId, }
+    // });
+    // if (existing) {
+    //   return errorResponse(res, 'Referral already exists', 400);
+    // }
 
     // Find applicable offer
-    let offer = null;
-    const offers = await Offer.findAll({ where: { isActive: true } });
-    for (const o of offers) {
-      const conditions = o.conditions || {};
-      if (conditions.minInvestment && investmentAmount < conditions.minInvestment) continue;
-      if (conditions.expiryDate && new Date(conditions.expiryDate) < new Date()) continue;
-      offer = o;
-      break;
-    }
+    const offer = await Offer.findOne({ where: { id: offerId } });
 
-    let finalRewardType = rewardType || 'points';
-    let finalRewardValue = rewardValue || Math.floor(investmentAmount / 1000); // default points
+    let finalRewardValue = rewardValue || Math.floor(investmentAmount / 100); // default points
 
-    if (offer) {
-      finalRewardType = offer.rewardType;
-      finalRewardValue = offer.rewardValue;
-    }
 
     const referral = await Referral.create({
       referrerId,
       referredUserId,
       investmentAmount,
-      rewardType: finalRewardType,
       rewardValue: finalRewardValue,
+      rewardPoints: rewardPoints,
       offerId: offer ? offer.id : null
     });
 
     // Award points if rewardType is points
     let pointsEarned = 0;
-    if (finalRewardType === 'points') {
       pointsEarned = parseInt(finalRewardValue);
       await UserPoint.create({
         userId: referrerId,
@@ -70,7 +56,6 @@ const createReferral = async (req, res) => {
         referenceId: referral.id,
         description: `Referral reward for investment of ₹${investmentAmount}`
       });
-    }
 
     // If rewardType is cashback or voucher, we'd handle elsewhere
 

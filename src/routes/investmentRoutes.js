@@ -12,6 +12,7 @@ router.post('/', authenticate, authorizeAdmin, investmentController.createInvest
 router.put('/:id', authenticate, authorizeAdmin, investmentController.updateInvestment);
 router.delete('/:id', authenticate, authorizeAdmin, investmentController.deleteInvestment);
 router.get('/', authenticate, authorizeAdmin, investmentController.getAllInvestments);
+router.get('/user/:userId', authenticate, authorizeAdmin, investmentController.getAllInvestmentsByUserID);
 router.get('/:id', authenticate, authorizeAdmin, investmentController.getInvestmentDetails);
 
 // Admin upload documents for investment

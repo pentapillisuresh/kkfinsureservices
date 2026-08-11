@@ -101,8 +101,6 @@ const getAllOffers = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
-    console.log("Offers:", offers);
-
     return successResponse(
       res,
       offers,

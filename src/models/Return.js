@@ -35,6 +35,10 @@ module.exports = (sequelize) => {
       type: DataTypes.ENUM('monthly', 'annual_bonus', 'quarterly_senior','offer'),
       defaultValue: 'monthly'
     },
+    status: {
+      type: DataTypes.ENUM('active', 'pending', 'inactive'),
+      defaultValue: 'pending'
+    },
     paidOn: {
       type: DataTypes.DATE,
       comment: 'Date when payout was processed (1st–10th of month)'

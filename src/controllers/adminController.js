@@ -62,6 +62,25 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const getDropdownUsers = async (req, res) => {
+  try {
+
+    const where = {};
+     where.role = "user";
+     where.isActive =true;
+
+    const users = await User.findAll({
+      where,
+      attributes: { exclude: ['password'] },
+      order: [['createdAt', 'DESC']]
+    });
+
+    return successResponse(res, { users}, 'Users fetched successfully');
+  } catch (error) {
+    return errorResponse(res, error.message, 500);
+  }
+};
+
 /**
  * Get user details by ID
  */
@@ -392,6 +411,7 @@ module.exports = {
   toggleUserStatus,
   getDashboardStats,
   approveDPC,
+  getDropdownUsers,
   uploadCompanyDocument,
   getCompanyDocuments,
   deleteCompanyDocument,
