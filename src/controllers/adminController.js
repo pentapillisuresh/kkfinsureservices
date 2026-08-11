@@ -167,7 +167,6 @@ const generateExcelFile = (data, userId) => {
   const transactionRows = [
   [
   'Date',
-  'Description',
   'Type',
   'Amount (₹)',
   'Reference ID',
@@ -192,7 +191,6 @@ const generateExcelFile = (data, userId) => {
   
     transactionRows.push([
       transactionDate,
-      tx.description || '',
       tx.type || '',
       Number(tx.amount || 0),
       tx.referenceId || '',
