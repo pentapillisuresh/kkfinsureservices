@@ -151,7 +151,7 @@ const getReturnById = async (req, res) => {
 const generateReturnByUser = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const { month, investmentId } = req.body; // YYYY-MM-DD
+    const { month, investmentId,offerId } = req.body; // YYYY-MM-DD
     if (!month) {
       return errorResponse(res, 'Month is required (YYYY-MM-DD)', 400);
     }
@@ -210,6 +210,7 @@ const generateReturnByUser = async (req, res) => {
         userId: user.id,
         month: monthDate,
         amount,
+        offerId,
         type: returnType,
         paidOn: new Date()
       }, { transaction });

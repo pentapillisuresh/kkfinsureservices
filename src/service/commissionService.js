@@ -11,11 +11,12 @@ const {PartnerTier} = require('../models');
  * @param {Date} monthDate - First day of the month (e.g., new Date(2026, 6, 1))
  * @returns {Promise<number>} - Number of commissions created
  */
-const processMonthlyCommissions = async (monthDate) => {
+const processMonthlyCommissions = async (monthDate,paidOn) => {
   const transaction = await sequelize.transaction();
   try {
-    const year = monthDate.getFullYear();
-    const month = monthDate.getMonth();
+    const date = new Date(monthDate);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
 
     // Get all partners (users with partnerType not 'none')
     const partners = await User.findAll({

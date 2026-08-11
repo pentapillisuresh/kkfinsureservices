@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
-const {PartnerCommission} = require('../models');
-const {User} = require('../models');
+const { PartnerCommission } = require('../models');
+const { User } = require('../models');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 const sequelize = require('../config/database');
 
@@ -140,9 +140,10 @@ const getUserCommissions = async (req, res) => {
  * Admin: Process monthly commissions (calls scheduler service)
  */
 const processMonthlyCommissions = async (req, res) => {
+  const { month, paidOn } = req.body
   try {
     const { processMonthlyCommissions } = require('../service/commissionService');
-    await processMonthlyCommissions();
+    await processMonthlyCommissions(month, paidOn);
     return successResponse(res, null, 'Monthly commissions processed successfully');
   } catch (error) {
     return errorResponse(res, error.message, 500);
@@ -203,6 +204,70 @@ const batchMarkAsPaid = async (req, res) => {
   }
 };
 
+const createCommissions = async (req, res) => {
+  try {
+  const {partnerId,month,totalInvestmentBase,commissionRate,commissionAmount,status,paidOn} = req.body;
+  
+  // Check required fields
+  if (
+    !partnerId ||
+    !month ||
+    totalInvestmentBase === undefined ||
+    commissionRate === undefined ||
+    commissionAmount === undefined
+  ) {
+    return errorResponse(
+      res,
+      'partnerId, month, totalInvestmentBase, commissionRate and commissionAmount are required',
+      400
+    );
+  }
+  
+  // Check if commission already exists for this partner and month
+  const existing = await PartnerCommission.findOne({
+    where: {
+      partnerId,
+      month
+    }
+  });
+  
+  if (existing) {
+    return errorResponse(
+      res,
+      'This commission already exists for this partner and month',
+      409
+    );
+  }
+  
+  // Create commission
+  const commission = await PartnerCommission.create({
+    partnerId,
+    month,
+    totalInvestmentBase,
+    commissionRate,
+    commissionAmount,
+    status: status || 'pending',
+    paidOn: paidOn || null
+  });
+  
+  return successResponse(
+    res,
+    {
+      commission
+    },
+    'Commission created successfully'
+  );
+  
+  } catch (error) {
+  console.error('Create commission error:', error);
+  
+  return errorResponse(
+    res,
+    error.message || 'Failed to create commission',
+    500
+  );
+  }};
+  
 module.exports = {
   getMyCommissions,
   getAllCommissions,
@@ -210,5 +275,6 @@ module.exports = {
   getUserCommissions,
   processMonthlyCommissions,
   markAsPaid,
+  createCommissions,
   batchMarkAsPaid
 };

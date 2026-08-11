@@ -13,6 +13,7 @@ router.get('/user/:userId', authenticate, authorizeAdmin, partnerCommissionContr
 
 // Admin processes commissions (monthly)
 router.post('/process', authenticate, authorizeAdmin, partnerCommissionController.processMonthlyCommissions);
+router.post('/', authenticate, authorizeAdmin, partnerCommissionController.createCommissions);
 
 // Admin marks commissions as paid
 router.put('/:id/pay', authenticate, authorizeAdmin, partnerCommissionController.markAsPaid);
