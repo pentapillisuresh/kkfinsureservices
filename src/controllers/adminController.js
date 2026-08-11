@@ -97,7 +97,7 @@ const ensureDirectoryExists = (dir) => {
 
 const generateExcelFile = (data, userId) => {
   const { summary, transactions = [], user } = data;
-  
+
   // ============================================================
   // 1. Summary Sheet
   // ============================================================
@@ -165,23 +165,26 @@ const generateExcelFile = (data, userId) => {
   // ============================================================
   
   const transactionRows = [
-  [
-  'Date',
-  'Type',
-  'Amount (₹)',
-  'Reference ID',
-  'Balance (₹)'
-  ]
+    [
+      'Date',
+      'Description',
+      'Type',
+      'Amount (₹)',
+      'Reference ID',
+      'Balance (₹)'
+    ]
   ];
-  
+    console.log("transactions:::",transactions)
   // Make sure transactions is an array
   if (Array.isArray(transactions)) {
+    console.log("is Array transactions:::",Array.isArray(transactions))
+
   transactions.forEach((tx) => {
   // Use formattedDate from API if available.
   // Otherwise format the date ourselves.
   let transactionDate = tx.formattedDate || '';
-  
-    if (!transactionDate && tx.date) {
+  console.log("transactionDate:::",transactionDate)
+  if (!transactionDate && tx.date) {
       transactionDate = new Date(tx.date).toLocaleDateString('en-IN', {
         day: '2-digit',
         month: 'short',
@@ -189,19 +192,22 @@ const generateExcelFile = (data, userId) => {
       });
     }
   
-    transactionRows.push([
-      transactionDate,
-      tx.type || '',
-      Number(tx.amount || 0),
-      tx.referenceId || '',
-      Number(tx.balance || 0)
-    ]);
+    transactions.forEach((tx) => {
+      transactionRows.push([
+        tx.formattedDate || '',
+        tx.description || '',
+        tx.type || '',
+        Number(tx.amount || 0),
+        tx.referenceId || '',
+        Number(tx.balance || 0)
+      ]);
+    });
   });
-  
+  console.log("transactionRows:::",transactionRows)
   }
   
   const transactionWS = XLSX.utils.aoa_to_sheet(transactionRows);
-  
+  console.log("transactionRows:::",transactionRows)
   // ============================================================
   // 3. Column widths
   // ============================================================
@@ -213,7 +219,6 @@ const generateExcelFile = (data, userId) => {
   
   transactionWS['!cols'] = [
   { wch: 18 }, // Date
-  { wch: 55 }, // Description
   { wch: 18 }, // Type
   { wch: 18 }, // Amount
   { wch: 40 }, // Reference ID
