@@ -14,7 +14,7 @@ module.exports = (sequelize) => {
     },
     balanceSheetFile: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: true
     },
     periodStart: {
       type: DataTypes.DATE,
@@ -29,6 +29,10 @@ module.exports = (sequelize) => {
       defaultValue: 0
     },
     totalReturns: {
+      type: DataTypes.DECIMAL(15, 2),
+      defaultValue: 0
+    },
+    totalCommission: {
       type: DataTypes.DECIMAL(15, 2),
       defaultValue: 0
     },
