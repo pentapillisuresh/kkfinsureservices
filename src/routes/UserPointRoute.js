@@ -15,6 +15,7 @@ router.post('/batch', authenticate, authorizeAdmin, userPointController.batchAdd
 router.delete('/:id', authenticate, authorizeAdmin, userPointController.deletePointEntry);
 
 // Admin can expire points
+router.put('/:id', authenticate, authorizeAdmin, userPointController.updateUserPoint);
 router.put('/:id/expire', authenticate, authorizeAdmin, userPointController.expirePoints);
 
 module.exports = router;

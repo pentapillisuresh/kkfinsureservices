@@ -15,7 +15,7 @@ const { Return } = require('../models');
 const { Referral } = require('../models');
 const { Ticket } = require('../models');
 const { BankDetail } = require('../models');
-const {PartnerCommission} = require('../models');
+const { PartnerCommission } = require('../models');
 
 const { formatDate, calculateMaturityDate } = require('../utils/helpers');
 
@@ -101,169 +101,170 @@ const generateExcelFile = (data, userId) => {
   // ============================================================
   // 1. Summary Sheet
   // ============================================================
-  
+
   const summaryData = [
-  ['Balance Sheet Summary'],
-  [''],
-  
-  ['User', user?.fullName || ''],
-  ['Email', user?.email || ''],
-  ['User ID', user?.id || userId || ''],
-  
-  [''],
-  
-  [
-    'Period Start',
-    summary?.period?.start
-      ? new Date(summary.period.start).toLocaleDateString('en-IN')
-      : ''
-  ],
-  [
-    'Period End',
-    summary?.period?.end
-      ? new Date(summary.period.end).toLocaleDateString('en-IN')
-      : ''
-  ],
-  
-  [''],
-  
-  [
-    'Total Investments (Outflow)',
-    Number(summary?.totalInvestments || 0)
-  ],
-  [
-    'Total Returns (Inflow)',
-    Number(summary?.totalReturns || 0)
-  ],
-  [
-    'Total Commissions (Inflow)',
-    Number(summary?.totalCommissions || 0)
-  ],
-  [
-    'Total Inflow',
-    Number(summary?.totalInflow || 0)
-  ],
-  [
-    'Total Outflow',
-    Number(summary?.totalOutflow || 0)
-  ],
-  [
-    'Net Worth',
-    Number(summary?.netWorth || 0)
-  ],
-  
-  [''],
-  
-  ['Generated At', new Date().toLocaleString('en-IN')]
-  
+    ['Balance Sheet Summary'],
+    [''],
+
+    ['User', user?.fullName || ''],
+    ['Email', user?.email || ''],
+    ['User ID', user?.id || userId || ''],
+
+    [''],
+
+    [
+      'Period Start',
+      summary?.period?.start
+        ? new Date(summary.period.start).toLocaleDateString('en-IN')
+        : ''
+    ],
+    [
+      'Period End',
+      summary?.period?.end
+        ? new Date(summary.period.end).toLocaleDateString('en-IN')
+        : ''
+    ],
+
+    [''],
+
+    [
+      'Total Investments ',
+      Number(summary?.totalInvestments || 0)
+    ],
+    [
+      'Total Returns ',
+      Number(summary?.totalReturns || 0)
+    ],
+    // Only show commission for partners
+    ...(user?.partnerType !== 'none'
+      ? [
+        [
+          'Total Commissions',
+          Number(summary?.totalCommissions || 0)
+        ]
+      ]
+      : []), [
+      'Total Inflow',
+      Number(summary?.totalInflow || 0)
+    ],
+    [
+      'Net Worth',
+      Number(summary?.netWorth || 0)
+    ],
+
+    [''],
+
+    ['Generated At', new Date().toLocaleString('en-IN')]
+
   ];
-  
+
   const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
-  
+
   // ============================================================
   // 2. Transactions Sheet
   // ============================================================
-  
+
   const transactionRows = [
     [
       'Date',
       'Description',
       'Type',
       'Amount (₹)',
+      'ROI',
       'Reference ID',
       'Balance (₹)'
     ]
   ];
-    console.log("transactions:::",transactions)
+
   // Make sure transactions is an array
   if (Array.isArray(transactions)) {
-    console.log("is Array transactions:::",Array.isArray(transactions))
 
-  transactions.forEach((tx) => {
-  // Use formattedDate from API if available.
-  // Otherwise format the date ourselves.
-  let transactionDate = tx.formattedDate || '';
-  console.log("transactionDate:::",transactionDate)
-  if (!transactionDate && tx.date) {
-      transactionDate = new Date(tx.date).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
-    }
-  
     transactions.forEach((tx) => {
-      transactionRows.push([
-        tx.formattedDate || '',
-        tx.description || '',
-        tx.type || '',
-        Number(tx.amount || 0),
-        tx.referenceId || '',
-        Number(tx.balance || 0)
-      ]);
+      // Use formattedDate from API if available.
+      // Otherwise format the date ourselves.
+      let transactionDate = tx.formattedDate || '';
+
+      if (!transactionDate && tx.date) {
+        transactionDate = new Date(tx.date).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+      }
+
+      transactions.forEach((tx) => {
+        transactionRows.push([
+          tx.formattedDate || '',
+          tx.description || '',
+          tx.type || '',
+          Number(tx.amount || 0),
+          tx.ROI != null ? `${parseInt(tx.ROI, 10)}%` : '-',
+          tx.referenceId || '',
+          Number(tx.balance || 0)
+        ]);
+      });
     });
-  });
-  console.log("transactionRows:::",transactionRows)
+
   }
-  
+
   const transactionWS = XLSX.utils.aoa_to_sheet(transactionRows);
-  console.log("transactionRows:::",transactionRows)
+
   // ============================================================
   // 3. Column widths
   // ============================================================
-  
+
   summaryWS['!cols'] = [
-  { wch: 30 },
-  { wch: 35 }
+    { wch: 30 },
+    { wch: 35 }
   ];
-  
+
   transactionWS['!cols'] = [
-  { wch: 18 }, // Date
-  { wch: 18 }, // Type
-  { wch: 18 }, // Amount
-  { wch: 40 }, // Reference ID
-  { wch: 18 }  // Balance
+    { wch: 18 }, // Date
+    { wch: 18 }, // Type
+    { wch: 18 }, // Amount
+    { wch: 40 }, // Reference ID
+    { wch: 18 }  // Balance
   ];
-  
+
   // ============================================================
   // 4. Workbook
   // ============================================================
-  
+
   const wb = XLSX.utils.book_new();
-  
+
   XLSX.utils.book_append_sheet(
-  wb,
-  summaryWS,
-  'Summary'
+    wb,
+    summaryWS,
+    'Summary'
   );
-  
+
   XLSX.utils.book_append_sheet(
-  wb,
-  transactionWS,
-  'Transactions'
+    wb,
+    transactionWS,
+    'Transactions'
   );
-  
+
   // ============================================================
   // 5. Write Excel file
   // ============================================================
-  
+
   const timestamp = Date.now();
-  
+
   const filename = `balance-sheet-${userId}-${timestamp}.xlsx`;
-  
+
   const filePath = path.join(
-  balanceSheetDir,
-  filename
+    balanceSheetDir,
+    filename
   );
-  
+
   XLSX.writeFile(wb, filePath);
-  
+
   return {
-  filename,
-  filePath
+    filename,
+    filePath
   };
-  };
-  
+};
+
 /**
  * Get all users with pagination and filters
  */
@@ -343,7 +344,9 @@ const getUserDetails = async (req, res) => {
         { model: Nominee, as: 'nominee' },
         { model: BankDetail, as: 'bankDetail' },
         { model: User, as: 'creator', attributes: ['id', 'fullName', 'email'] },
-        { model: Investment, as: 'investments' },
+        { model: Investment, as: 'investments',include: [
+          { model: Plan, as: 'plan' }
+        ], },
         { model: Return, as: 'returns' },
         { model: Document, as: 'documents' },
       ]
@@ -571,7 +574,7 @@ const generateBalanceSheet = async (req, res) => {
       return errorResponse(res, 'User not found', 404);
     }
 
-    // 2. Fetch investments (outflow)
+    // 2. Fetch investments 
     const investments = await Investment.findAll({
       where: {
         userId,
@@ -586,7 +589,7 @@ const generateBalanceSheet = async (req, res) => {
         userId,
         paidOn: { [Op.between]: [start, end] }
       },
-      attributes: ['id', 'amount', 'paidOn', 'type']
+      attributes: ['id', 'amount', 'paidOn', 'type', 'ROI']
     });
 
     // 4. Fetch partner commissions (inflow)
@@ -602,7 +605,7 @@ const generateBalanceSheet = async (req, res) => {
     // 5. Build transaction list
     const transactions = [];
 
-    // Investments (outflow)
+    // Investments 
     for (const inv of investments) {
       transactions.push({
         date: inv.investmentDate,
@@ -619,6 +622,7 @@ const generateBalanceSheet = async (req, res) => {
         date: ret.paidOn,
         description: `Return (${ret.type})`,
         type: 'return',
+        ROI: ret.ROI,
         amount: parseFloat(ret.amount),
         referenceId: ret.id
       });
@@ -674,7 +678,7 @@ const generateBalanceSheet = async (req, res) => {
       transactions: statement,
       user: {
         id: user.id,
-        fullName: user.fullName, 
+        fullName: user.fullName,
         email: user.email
       }
     };
@@ -733,6 +737,13 @@ const getAllBalanceSheet = async (req, res) => {
       count,
       rows: balanceSheets,
     } = await BalanceSheet.findAndCountAll({
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'fullName', 'email'],
+        }
+      ],
       limit,
       offset,
       order: [['createdAt', 'DESC']],

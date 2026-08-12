@@ -79,7 +79,7 @@ const createInvestment = async (req, res) => {
         investmentAmount: amount,
         rewardPoints,
         rewardValue,
-        expireDate:investment.maturityDate,
+        expireDate: investment.maturityDate,
         offerId: applicableOffer ? applicableOffer.id : null,
         rewardType: applicableOffer ? applicableOffer.rewardType : 'points',
       }, { transaction });
@@ -91,15 +91,15 @@ const createInvestment = async (req, res) => {
 
     const firstReturnMonth = new Date(investmentDateObj.getFullYear(), investmentDateObj.getMonth() + 1, 1);
     const lastReturnMonth = new Date(maturityDate.getFullYear(), maturityDate.getMonth(), 1);
-
+    let monthNumber = 1
     let currentMonth = new Date(firstReturnMonth);
     while (currentMonth <= lastReturnMonth) {
       let returnType = 'monthly';
       let returnAmount = monthlyReturnAmount;
-
+      let roi = plan.monthlyReturnPercent;
       if (isSenior) {
         const monthDiff = (currentMonth.getFullYear() - firstReturnMonth.getFullYear()) * 12 +
-                          (currentMonth.getMonth() - firstReturnMonth.getMonth());
+          (currentMonth.getMonth() - firstReturnMonth.getMonth());
         if (monthDiff % 3 === 0) {
           returnType = 'quarterly_senior';
           returnAmount = monthlyReturnAmount * 3;
@@ -109,16 +109,17 @@ const createInvestment = async (req, res) => {
           continue;
         }
       }
-
       await Return.create({
         investmentId: investment.id,
         userId: user.id,
         month: currentMonth,
         amount: returnAmount,
         type: returnType,
+        monthNo: isSenior ? monthNumber * 3 : monthNumber,
+        ROI: isSenior ? roi * monthNumber * 3 : roi * monthNumber,
         paidOn: null, // pending
       }, { transaction });
-
+      monthNumber++
       currentMonth.setMonth(currentMonth.getMonth() + 1);
     }
 
@@ -130,6 +131,7 @@ const createInvestment = async (req, res) => {
     return errorResponse(res, error.message, 500);
   }
 };
+
 /**
  * Update investment (admin only)
  */

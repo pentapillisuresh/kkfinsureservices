@@ -1,4 +1,4 @@
-const { Op } = require('sequelize');
+const { Op,Sequelize } = require('sequelize');
 const { Return } = require('../models');
 const { Investment } = require('../models');
 const { User } = require('../models');
@@ -16,7 +16,7 @@ const getMyReturns = async (req, res) => {
     const where = { userId: req.user.id };
     if (type) where.type = type;
     if (month) where.month = month;
-
+    where.status = "active";
     const { count, rows } = await Return.findAndCountAll({
       where,
       include: [{ model: Investment, as: 'investment' }],
@@ -60,33 +60,130 @@ const getMyReturnSummary = async (req, res) => {
  */
 const getAllReturns = async (req, res) => {
   try {
-    const { userId, investmentId, type, month, limit = 20, offset = 0 } = req.query;
-    const where = {};
-    if (userId) where.userId = userId;
-    if (investmentId) where.investmentId = investmentId;
-    if (type) where.type = type;
-    if (month) where.month = month;
+    const {
+      userId,
+      investmentId,
+      type,
+      month,
+      search,
+      limit = 20,
+      offset = 0
+    } = req.query;
 
+    const parsedLimit = parseInt(limit, 10);
+    const parsedOffset = parseInt(offset, 10);
+
+    const where = {};
+
+    // User filter
+    if (userId) {
+      where.userId = userId;
+    }
+
+    // Investment filter
+    if (investmentId) {
+      where.investmentId = investmentId;
+    }
+
+    // Type filter
+    if (type) {
+      where.type = type;
+    }
+
+    // Month filter – if "month" is provided in YYYY-MM format
+    if (month) {
+      const monthParts = month.split('-');
+      if (monthParts.length === 2) {
+        const year = parseInt(monthParts[0], 10);
+        const monthNum = parseInt(monthParts[1], 10);
+        const startDate = new Date(year, monthNum - 1, 1);
+        const endDate = new Date(year, monthNum, 1);
+        where.month = {
+          [Op.gte]: startDate,
+          [Op.lt]: endDate
+        };
+      } else {
+        // If not in YYYY-MM format, fallback to exact date match
+        where.month = new Date(month);
+      }
+    }
+
+    // Search – using LIKE for MySQL (case-insensitive via LOWER)
+    if (search && search.trim()) {
+      const searchValue = search.trim().toLowerCase();
+
+      // We'll use Sequelize.literal with LOWER() for case-insensitive search
+      const searchConditions = [
+        Sequelize.where(
+          Sequelize.fn('LOWER', Sequelize.col('user.fullName')),
+          { [Op.like]: `%${searchValue}%` }
+        ),
+        Sequelize.where(
+          Sequelize.fn('LOWER', Sequelize.col('user.phone')),
+          { [Op.like]: `%${searchValue}%` }
+        ),
+        Sequelize.where(
+          Sequelize.fn('LOWER', Sequelize.col('user.batchId')),
+          { [Op.like]: `%${searchValue}%` }
+        ),
+        Sequelize.where(
+          Sequelize.fn('LOWER', Sequelize.col('investment.InvestmentCode')),
+          { [Op.like]: `%${searchValue}%` }
+        )
+      ];
+
+      // If any of these columns are NULL, we need to handle them.
+      // We'll wrap each condition with a check for non-null.
+      // Simpler: use Op.or with individual Sequelize.where.
+      where[Op.or] = searchConditions;
+    }
+
+    // Perform the query with count and rows
     const { count, rows } = await Return.findAndCountAll({
       where,
       include: [
-        { model: User, as: 'user', attributes: ['id', 'fullName', 'email'] },
-        { model: Investment, as: 'investment' }
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'fullName', 'email', 'phone', 'batchId'],
+          required: false,
+        },
+        {
+          model: Investment,
+          as: 'investment',
+          required: false,
+        }
       ],
       order: [['month', 'DESC']],
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: parsedLimit,
+      offset: parsedOffset,
+      distinct: true, // ensures count is correct with includes
     });
 
-    return successResponse(res, {
-      returns: rows,
-      pagination: { total: count, limit: parseInt(limit), offset: parseInt(offset) }
-    }, 'All returns fetched successfully');
+    const page = Math.floor(parsedOffset / parsedLimit) + 1;
+    const totalPages = Math.ceil(count / parsedLimit);
+
+    return successResponse(
+      res,
+      {
+        returns: rows,
+        pagination: {
+          total: count,
+          page,
+          limit: parsedLimit,
+          totalPages,
+        },
+      },
+      'All returns fetched successfully'
+    );
+
   } catch (error) {
+    console.error('getAllReturns error:', error);
     return errorResponse(res, error.message, 500);
   }
 };
 
+module.exports = { getAllReturns };
 /**
  * Admin: Get returns for a specific user
  */
@@ -151,7 +248,7 @@ const getReturnById = async (req, res) => {
 const generateReturnByUser = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const { month, investmentId,offerId } = req.body; // YYYY-MM-DD
+    const { month, investmentId, offerId } = req.body; // YYYY-MM-DD
     if (!month) {
       return errorResponse(res, 'Month is required (YYYY-MM-DD)', 400);
     }
@@ -183,17 +280,6 @@ const generateReturnByUser = async (req, res) => {
     let returnType = 'monthly';
     let amount = monthlyAmount;
 
-    // if (isSenior) {
-    //   // Only generate quarterly on first month of quarter
-    //   if (monthIndex % 3 === 0) {
-    //     returnType = 'quarterly_senior';
-    //     amount = monthlyAmount * 3;
-    //   } else {
-    //     // Skip this month for seniors (only quarterly)
-    //     continue;
-    //   }
-    // }
-
     // Check if return already exists for this month and investment
     const existing = await Return.findOne({
       where: {
@@ -223,6 +309,69 @@ const generateReturnByUser = async (req, res) => {
     return errorResponse(res, error.message, 500);
   }
 };
+
+const updateReturn = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { id } = req.params;
+    const { 
+      amount, 
+      type, 
+      status, 
+      paidOn, 
+      month, 
+      description, 
+      offerId,
+      ROI 
+    } = req.body;
+
+    // 1. Find the existing return
+    const returnRecord = await Return.findByPk(id, { transaction });
+    if (!returnRecord) {
+      await transaction.rollback();
+      return errorResponse(res, 'Return not found', 404);
+    }
+
+    // 2. If month is being changed, validate that no other return exists for that month & investment
+    if (month && month !== returnRecord.month) {
+      const existing = await Return.findOne({
+        where: {
+          investmentId: returnRecord.investmentId,
+          month: new Date(month),
+          id: { [Op.ne]: id } // exclude itself
+        },
+        transaction
+      });
+      if (existing) {
+        await transaction.rollback();
+        return errorResponse(res, 'A return already exists for this investment and month', 400);
+      }
+    }
+
+    // 3. If investment is active, we may allow updates; otherwise restrict? 
+    // We'll allow updates regardless, but we could check if investment is still active.
+
+    // 4. Perform update
+    await returnRecord.update({
+      amount: amount !== undefined ? amount : returnRecord.amount,
+      type: type || returnRecord.type,
+      status: status || returnRecord.status,
+      paidOn: paidOn !== undefined ? new Date(paidOn) : returnRecord.paidOn,
+      month: month ? new Date(month) : returnRecord.month,
+      description: description !== undefined ? description : returnRecord.description,
+      offerId: offerId !== undefined ? offerId : returnRecord.offerId,
+      ROI: ROI !== undefined ? ROI : returnRecord.ROI,
+    }, { transaction });
+
+    await transaction.commit();
+    return successResponse(res, returnRecord, 'Return updated successfully');
+  } catch (error) {
+    await transaction.rollback();
+    console.error('updateReturn error:', error);
+    return errorResponse(res, error.message, 500);
+  }
+};
+
 /**
  * Admin: Generate returns manually (for a specific month)
  * This can be called via cron or manually
@@ -386,6 +535,7 @@ const markAsPaid = async (req, res) => {
     }
 
     returnRecord.paidOn = new Date();
+    returnRecord.status = "active";
     await returnRecord.save();
 
     return successResponse(res, returnRecord, 'Return marked as paid');
@@ -423,7 +573,7 @@ module.exports = {
   getReturnById,
   generateReturns,
   generateAnnualBonuses,
-  markAsPaid,
+  markAsPaid,updateReturn,
   generateReturnByUser,
   batchMarkAsPaid
 };

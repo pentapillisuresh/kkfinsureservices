@@ -136,6 +136,40 @@ const addPoints = async (req, res) => {
   }
 };
 
+const updateUserPoint = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { points, source, referenceId, description, expiresAt } = req.body;
+
+    // 1. Find the existing point entry
+    const pointEntry = await UserPoint.findByPk(id);
+    if (!pointEntry) {
+      return errorResponse(res, 'Point entry not found', 404);
+    }
+
+    // 2. If points are being updated, ensure it's a number (could be negative for deductions)
+    if (points !== undefined && (typeof points !== 'number' || isNaN(points))) {
+      return errorResponse(res, 'Points must be a valid number', 400);
+    }
+
+    // 3. Prepare update data
+    const updateData = {};
+    if (points !== undefined) updateData.points = points;
+    if (source) updateData.source = source;
+    if (referenceId !== undefined) updateData.referenceId = referenceId;
+    if (description !== undefined) updateData.description = description;
+    if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null;
+
+    // 4. Perform update
+    await pointEntry.update(updateData);
+
+    return successResponse(res, pointEntry, 'User point updated successfully');
+  } catch (error) {
+    console.error('updateUserPoint error:', error);
+    return errorResponse(res, error.message, 500);
+  }
+};
+
 /**
  * Admin: Batch add points to multiple users
  */
@@ -213,6 +247,7 @@ module.exports = {
   getUserPoints,
   addPoints,
   batchAddPoints,
+  updateUserPoint,
   deletePointEntry,
   expirePoints
 };

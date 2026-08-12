@@ -27,9 +27,18 @@ module.exports = (sequelize) => {
       allowNull: false,
       comment: 'Month for which return is generated'
     },
+    monthNo: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: 'generated return month number'
+    },
     amount: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false
+    },
+    ROI: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: true
     },
     type: {
       type: DataTypes.ENUM('monthly', 'annual_bonus', 'quarterly_senior','offer'),

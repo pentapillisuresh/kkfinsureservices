@@ -18,6 +18,7 @@ router.post('/generate', authenticate, authorizeAdmin, returnController.generate
 router.post('/generate/annual-bonus', authenticate, authorizeAdmin, returnController.generateAnnualBonuses);
 
 // Admin marks returns as paid (payout)
+router.put('/:id', authenticate, authorizeAdmin, returnController.updateReturn);
 router.put('/:id/pay', authenticate, authorizeAdmin, returnController.markAsPaid);
 router.put('/batch/pay', authenticate, authorizeAdmin, returnController.batchMarkAsPaid);
 

@@ -3,6 +3,7 @@ const {Referral} = require('../models');
 const {User} = require('../models');
 const {UserPoint} = require('../models');
 const {Offer} = require('../models');
+const {PartnerCommission} = require('../models/PartnerCommission');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 
 /**
@@ -77,11 +78,13 @@ const createReferral = async (req, res) => {
  */
 const getMyReferrals = async (req, res) => {
   try {
+    const userId = req.user.id;
     const { status, page = 1, limit = 20 } = req.query;
-    const where = { referrerId: req.user.id };
+    const where = { referrerId: userId };
 
     const offset = (page - 1) * limit;
 
+    // 1. Fetch paginated list of referrals
     const { count, rows } = await Referral.findAndCountAll({
       where,
       include: [
@@ -93,7 +96,41 @@ const getMyReferrals = async (req, res) => {
       offset: parseInt(offset)
     });
 
-    return successResponse(res, {
+    // 2. Compute aggregates
+    // a) Total number of referrals (already available as 'count')
+    const totalReferrals = count;
+
+    // b) Total investment amount made by referred users
+    //    (sum of investmentAmount from Referral table)
+    const totalInvestmentsResult = await Referral.sum('investmentAmount', {
+      where: { referrerId: userId }
+    });
+    const totalInvestments = totalInvestmentsResult || 0;
+
+    // c) Total referral points earned (sum of rewardPoints from Referral table)
+    const totalPointsResult = await Referral.sum('rewardPoints', {
+      where: { referrerId: userId }
+    });
+    const totalReferralPoints = totalPointsResult || 0;
+
+    // d) Total earnings from partner commissions
+    //    (sum of commissionAmount from PartnerCommission where partnerId = userId)
+    const totalEarningsResult = await PartnerCommission.sum('commissionAmount', {
+      where: {
+        partnerId: userId,
+        status: 'paid'   // only count paid commissions as earnings
+      }
+    });
+    const totalEarnings = totalEarningsResult || 0;
+
+    // 3. Prepare response
+    const responseData = {
+      summary: {
+        totalReferrals,
+        totalInvestments,
+        totalReferralPoints,
+        totalEarnings
+      },
       referrals: rows,
       pagination: {
         total: count,
@@ -101,12 +138,14 @@ const getMyReferrals = async (req, res) => {
         limit: parseInt(limit),
         totalPages: Math.ceil(count / limit)
       }
-    }, 'Referrals fetched successfully');
+    };
+
+    return successResponse(res, responseData, 'Referrals fetched successfully');
   } catch (error) {
+    console.error('getMyReferrals error:', error);
     return errorResponse(res, error.message, 500);
   }
 };
-
 /**
  * Get referral statistics for authenticated user
  */
