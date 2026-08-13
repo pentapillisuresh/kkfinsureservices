@@ -578,7 +578,7 @@ const generateBalanceSheet = async (req, res) => {
     const investments = await Investment.findAll({
       where: {
         userId,
-        investmentDate: { [Op.between]: [start, end] }
+        investmentDate: { [Op.between]: [start, end] },
       },
       attributes: ['id', 'amount', 'investmentDate', 'planId', 'status']
     });
@@ -587,7 +587,8 @@ const generateBalanceSheet = async (req, res) => {
     const returns = await Return.findAll({
       where: {
         userId,
-        paidOn: { [Op.between]: [start, end] }
+        paidOn: { [Op.between]: [start, end] },
+        status:'active'
       },
       attributes: ['id', 'amount', 'paidOn', 'type', 'ROI']
     });
@@ -750,7 +751,8 @@ const getMyBalanceSheetGenerateById = async (req, res) => {
     const returns = await Return.findAll({
       where: {
         userId,
-        paidOn: { [Op.between]: [start, end] }
+        paidOn: { [Op.between]: [start, end] },
+        status:'active'
       },
       attributes: ['id', 'amount', 'paidOn', 'type', 'ROI']
     });
