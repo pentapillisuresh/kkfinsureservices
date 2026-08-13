@@ -720,6 +720,169 @@ const generateBalanceSheet = async (req, res) => {
   }
 };
 
+const getMyBalanceSheetGenerateById = async (req, res) => {
+  try {
+    const {  periodStart, periodEnd } = req.body;
+    const userId = req.user.id;
+    if (!userId || !periodStart || !periodEnd) {
+      return errorResponse(res, 'userId, periodStart, and periodEnd are required', 400);
+    }
+
+    const start = new Date(periodStart);
+    const end = new Date(periodEnd);
+
+    // 1. Validate user
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return errorResponse(res, 'User not found', 404);
+    }
+
+    // 2. Fetch investments 
+    const investments = await Investment.findAll({
+      where: {
+        userId,
+        investmentDate: { [Op.between]: [start, end] }
+      },
+      attributes: ['id', 'amount', 'investmentDate', 'planId', 'status']
+    });
+
+    // 3. Fetch returns (inflow)
+    const returns = await Return.findAll({
+      where: {
+        userId,
+        paidOn: { [Op.between]: [start, end] }
+      },
+      attributes: ['id', 'amount', 'paidOn', 'type', 'ROI']
+    });
+
+    // 4. Fetch partner commissions (inflow)
+    const commissions = await PartnerCommission.findAll({
+      where: {
+        partnerId: userId,
+        paidOn: { [Op.between]: [start, end] },
+        status: 'paid'
+      },
+      attributes: ['id', 'commissionAmount', 'paidOn', 'month']
+    });
+
+    // 5. Build transaction list
+    const transactions = [];
+
+    // Investments 
+    for (const inv of investments) {
+      transactions.push({
+        date: inv.investmentDate,
+        description: `Investment in Plan ${inv.planId}`,
+        type: 'investment',
+        amount: -parseFloat(inv.amount),
+        referenceId: inv.id
+      });
+    }
+
+    // Returns (inflow)
+    for (const ret of returns) {
+      transactions.push({
+        date: ret.paidOn,
+        description: `Return (${ret.type})`,
+        type: 'return',
+        ROI: ret.ROI,
+        amount: parseFloat(ret.amount),
+        referenceId: ret.id
+      });
+    }
+
+    // Partner Commissions (inflow)
+    for (const com of commissions) {
+      transactions.push({
+        date: com.paidOn,
+        description: `Partner Commission for ${com.month}`,
+        type: 'commission',
+        amount: parseFloat(com.commissionAmount),
+        referenceId: com.id
+      });
+    }
+
+    // Sort by date
+    transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Running balance
+    let runningBalance = 0;
+    const statement = transactions.map(t => {
+      runningBalance += t.amount;
+      return {
+        ...t,
+        balance: runningBalance,
+        formattedDate: new Date(t.date).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        })
+      };
+    });
+
+    // Totals
+    const totalOutflow = investments.reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
+    const totalReturns = returns.reduce((sum, r) => sum + parseFloat(r.amount), 0);
+    const totalCommissions = commissions.reduce((sum, c) => sum + parseFloat(c.commissionAmount), 0);
+    const totalInflow = totalReturns + totalCommissions;
+    const netWorth = totalInflow - totalOutflow;
+
+    // Prepare data object
+    const balanceSheetData = {
+      summary: {
+        period: { start: start.toISOString(), end: end.toISOString() },
+        totalInvestments: totalOutflow,
+        totalReturns,
+        totalCommissions,
+        totalInflow,
+        totalOutflow,
+        netWorth
+      },
+      transactions: statement,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email
+      }
+    };
+
+    // Save balance sheet record first (without file)
+    const balanceSheet = await BalanceSheet.create({
+      userId,
+      periodStart: start,
+      periodEnd: end,
+      totalInvestments: totalOutflow,
+      totalReturns,
+      totalPartnerCommissions: totalCommissions,
+      netWorth,
+      generatedAt: new Date(),
+      balanceSheetFile: null // placeholder
+    });
+
+    // Generate Excel file
+    const { filename, filePath } = generateExcelFile(balanceSheetData, userId);
+
+    // Update balance sheet record with file path
+    const relativePath = `uploads/balance-sheets/${filename}`;
+    balanceSheet.balanceSheetFile = relativePath;
+    await balanceSheet.save();
+
+    // Build full URL
+    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+    const fileUrl = `${baseUrl}/${relativePath}`;
+
+    return successResponse(res, {
+      ...balanceSheetData,
+      recordId: balanceSheet.id,
+      fileUrl,
+      filePath: relativePath
+    }, 'Balance sheet generated and Excel file saved successfully');
+  } catch (error) {
+    console.error('Balance Sheet Error:', error);
+    return errorResponse(res, error.message, 500);
+  }
+};
+
 const getAllBalanceSheet = async (req, res) => {
   try {
     const { page = 1 } = req.query;
@@ -798,5 +961,6 @@ module.exports = {
   deleteCompanyDocument,
   generateBalanceSheet,
   getAllBalanceSheet,
-  getAuditLogs
+  getAuditLogs,
+  getMyBalanceSheetGenerateById
 };
