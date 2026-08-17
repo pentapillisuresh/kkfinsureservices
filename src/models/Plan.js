@@ -12,7 +12,7 @@ module.exports = (sequelize) => {
       allowNull: false
     },
     planType: {
-      type: DataTypes.ENUM('falcon', 'AIP',"PSM"),
+      type: DataTypes.ENUM('falcon', 'AIF',"PSM"),
       defaultValue: 'falcon'
     },
 

@@ -33,6 +33,7 @@ const getDashboardData = async (req, res) => {
     // --- 3. Total Returns (this month) ---
     const totalReturnsThisMonth = await Return.sum('amount', {
       where: {
+        status:"active",
         paidOn: { [Op.gte]: currentMonthStart },
         type: 'monthly' // only monthly returns (or all, but we stick to monthly)
       }
@@ -93,7 +94,11 @@ const getDashboardData = async (req, res) => {
     }));
 
     // --- 8. Additional: Total returns overall (for optional display) ---
-    const totalReturnsOverall = await Return.sum('amount') || 0;
+    const totalReturnsOverall = await Return.sum('amount', {
+      where: {
+        status:"active",
+      }
+    }) || 0;
 
     // --- 9. Response ---
     const dashboardData = {

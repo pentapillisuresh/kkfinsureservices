@@ -3,7 +3,7 @@ const {Referral} = require('../models');
 const {User} = require('../models');
 const {UserPoint} = require('../models');
 const {Offer} = require('../models');
-const {PartnerCommission} = require('../models/PartnerCommission');
+const {PartnerCommission} = require('../models');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 
 /**

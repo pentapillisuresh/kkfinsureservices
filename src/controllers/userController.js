@@ -74,22 +74,29 @@ const getDashboardData = async (req, res) => {
 console.log("userId:::",userId)
     // Fetch all active investments (you can change status filter as needed)
     const investments = await Investment.findAll({
-      where: { 
+      where: {
         userId,
-        status: 'active'   // optional – include only active, or remove to get all
+        status: 'active'
       },
       include: [
-        { model: Plan, as: 'plan' },
-        { 
-          model: Return, 
+        {
+          model: Plan,
+          as: 'plan'
+        },
+        {
+          model: Return,
           as: 'returns',
-          where: { paidOn: { [Op.not]: null } }, // only paid returns
-          required: false                       // left join
+          where: {
+            paidOn: {
+              [Op.ne]: null
+            },
+            status: 'active'
+          },
+          required: false
         }
       ],
       order: [['createdAt', 'DESC']]
     });
-
     let totalInvested = 0;
     let totalPaidReturns = 0;
     let totalCurrentValue = 0;
@@ -154,7 +161,7 @@ console.log("userId:::",userId)
         returnsCount: paidReturns.length,
         firstPaymentDate: firstPaymentDate,
         firstPaymentMonth: firstPaymentMonth,
-        monthlyReturns: monthlyReturnsForInv,
+        monthlyReturns: inv.return,
         isMatured: new Date(inv.maturityDate) < new Date(),
         daysToMaturity: Math.ceil((new Date(inv.maturityDate) - new Date()) / (1000 * 60 * 60 * 24)),
       });
@@ -184,12 +191,13 @@ console.log("userId:::",userId)
         upcomingMaturity: upcomingMaturity ? upcomingMaturity.maturityDate : null,
         upcomingMaturityInvestmentId: upcomingMaturity ? upcomingMaturity.id : null,
       },
-      monthlyReturns: Object.keys(monthlyReturnsMap)
-        .sort()
-        .map(month => ({
-          month,
-          totalAmount: monthlyReturnsMap[month]
-        })),
+      // monthlyReturns: Object.keys(monthlyReturnsMap)
+      //   .sort()
+      //   .map(month => ({
+      //     month,
+      //     totalAmount: monthlyReturnsMap[month]
+      //   })),
+      monthlyReturns: investments,
       investments: investmentDetails,
     };
 

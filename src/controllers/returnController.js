@@ -154,7 +154,12 @@ const getAllReturns = async (req, res) => {
           required: false,
         }
       ],
-      order: [['month', 'DESC']],
+      order: [
+        // Primary order: by user's full name (ascending)
+        [{ model: User, as: 'user' }, 'fullName', 'ASC'],
+        // Secondary order: by creation date (descending) for same names
+        ['month', 'ASC']
+      ],
       limit: parsedLimit,
       offset: parsedOffset,
       distinct: true, // ensures count is correct with includes

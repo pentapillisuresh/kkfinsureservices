@@ -91,35 +91,46 @@ const createInvestment = async (req, res) => {
 
     const firstReturnMonth = new Date(investmentDateObj.getFullYear(), investmentDateObj.getMonth() + 1, 1);
     const lastReturnMonth = new Date(maturityDate.getFullYear(), maturityDate.getMonth(), 1);
-    let monthNumber = 1
+
+    let monthNumber = 1;
+    let quarterNumber = 1;
     let currentMonth = new Date(firstReturnMonth);
+
     while (currentMonth <= lastReturnMonth) {
-      let returnType = 'monthly';
-      let returnAmount = monthlyReturnAmount;
-      let roi = plan.monthlyReturnPercent;
-      if (isSenior) {
-        const monthDiff = (currentMonth.getFullYear() - firstReturnMonth.getFullYear()) * 12 +
-          (currentMonth.getMonth() - firstReturnMonth.getMonth());
-        if (monthDiff % 3 === 0) {
-          returnType = 'quarterly_senior';
-          returnAmount = monthlyReturnAmount * 3;
-        } else {
-          // Skip months that are not quarter starts
-          currentMonth.setMonth(currentMonth.getMonth() + 1);
-          continue;
-        }
-      }
+      // ---- Monthly Return (always) ----
+      const monthlyROI = parseFloat(plan.monthlyReturnPercent) * monthNumber;
       await Return.create({
         investmentId: investment.id,
         userId: user.id,
         month: currentMonth,
-        amount: returnAmount,
-        type: returnType,
-        monthNo: isSenior ? monthNumber * 3 : monthNumber,
-        ROI: isSenior ? roi * monthNumber * 3 : roi * monthNumber,
-        paidOn: null, // pending
+        amount: monthlyReturnAmount,
+        type: 'monthly',
+        monthNo: monthNumber,
+        ROI: monthlyROI,
+        paidOn: null,
       }, { transaction });
-      monthNumber++
+
+      // ---- Quarterly Return (only for seniors) ----
+      if (isSenior) {
+        const monthDiff = (currentMonth.getFullYear() - firstReturnMonth.getFullYear()) * 12 +
+                          (currentMonth.getMonth() - firstReturnMonth.getMonth());
+        if (monthDiff % 3 === 0) {
+          const quarterlyROI = parseFloat(plan.annualBonusPercent) / 4;
+          console.log("quater ROI::",quarterlyROI,"*",currentMonth/3);
+          await Return.create({
+            investmentId: investment.id,
+            userId: user.id,
+            month: currentMonth,
+            amount: monthlyReturnAmount * 3,
+            type: 'quarterly_senior',
+            monthNo: monthNumber, // or monthNumber * 3? we'll keep monthNo = monthNumber
+            ROI: quarterlyROI * quarterNumber,
+            paidOn: null,
+          }, { transaction });
+          quarterNumber++
+        }
+      }
+      monthNumber++;
       currentMonth.setMonth(currentMonth.getMonth() + 1);
     }
 

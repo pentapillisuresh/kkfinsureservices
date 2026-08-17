@@ -287,6 +287,7 @@ const getAllUsers = async (req, res) => {
 
     const { count, rows } = await User.findAndCountAll({
       where,
+      distinct: true,
       attributes: { exclude: ['password'] },
       include: [
         { model: User, as: 'creator', attributes: ['id', 'fullName', 'email'] },

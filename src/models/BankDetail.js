@@ -32,9 +32,6 @@ module.exports = (sequelize) => {
     ifscCode: {
       type: DataTypes.STRING,
       allowNull: false,
-      validate: {
-        is: /^[A-Z]{4}0[A-Z0-9]{6}$/ // IFSC format
-      }
     },
     branch: {
       type: DataTypes.STRING

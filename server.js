@@ -35,6 +35,7 @@ const bankDetailRoutes = require('./src/routes/BankDetailRoute');
 const { initializeScheduler } = require('./src/utils/scheduler');
 
 const app = express();
+app.set('trust proxy', 1);
 
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
@@ -192,7 +193,7 @@ async function createAdminIfNotExists() {
         await User.create({
             email,
             password: process.env.ADMIN_PASSWORD || 'Admin@123',
-            fullName: process.env.ADMIN_NAME || 'Super Admin',
+            fullName: process.env.ADMIN_NAME || 'Chief Administrator',
             role: 'admin',
             partnerType: 'none',
             isActive: true
