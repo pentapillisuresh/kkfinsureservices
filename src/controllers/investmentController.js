@@ -116,12 +116,12 @@ const createInvestment = async (req, res) => {
                           (currentMonth.getMonth() - firstReturnMonth.getMonth());
         if (monthDiff % 3 === 0) {
           const quarterlyROI = parseFloat(plan.annualBonusPercent) / 4;
-          console.log("quater ROI::",quarterlyROI,"*",currentMonth/3);
+          const quarterlyReturnAmount = (amount * quarterlyROI) / 100;
           await Return.create({
             investmentId: investment.id,
             userId: user.id,
             month: currentMonth,
-            amount: monthlyReturnAmount * 3,
+            amount:  quarterlyReturnAmount,
             type: 'quarterly_senior',
             monthNo: monthNumber, // or monthNumber * 3? we'll keep monthNo = monthNumber
             ROI: quarterlyROI * quarterNumber,
