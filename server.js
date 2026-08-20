@@ -47,7 +47,7 @@ const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const allowedOrigins =
     process.env.NODE_ENV === 'production'
         ? ['https://yourdomain.com']
-        : ['http://localhost:3000', 'http://localhost:5173'];
+        : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'];
 
 app.use(cors({
     origin(origin, callback) {
