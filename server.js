@@ -278,13 +278,13 @@ async function startServer() {
             console.log('=================================');
         });
 
-        if (
-            process.env.NODE_ENV !== 'test' &&
-            typeof initializeScheduler === 'function'
-        ) {
-            initializeScheduler();
-            console.log('✅ Scheduler Started');
-        }
+        // if (
+        //     process.env.NODE_ENV !== 'test' &&
+        //     typeof initializeScheduler === 'function'
+        // ) {
+        //     initializeScheduler();
+        //     console.log('✅ Scheduler Started');
+        // }
 
     } catch (err) {
         console.error('❌ Server Startup Failed');

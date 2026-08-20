@@ -15,27 +15,58 @@ const uploadDocument = async (req, res) => {
       return errorResponse(res, 'No file uploaded', 400);
     }
 
+    // Validate the document owner if provided
     if (userId) {
       const user = await User.findByPk(userId);
+
       if (!user) {
         return errorResponse(res, 'User not found', 404);
       }
     }
+
+    // Validate the authenticated uploader
+    if (!req.user?.id) {
+      return errorResponse(res, 'Authenticated user not found', 401);
+    }
+
+    const uploader = await User.findByPk(req.user.id);
+
+    if (!uploader) {
+      console.error('Invalid uploader ID:', req.user.id);
+
+      return errorResponse(
+        res,
+        'Authenticated user does not exist in database',
+        401
+      );
+    }
+
     const relativePath = req.file.path
-    .split(`${path.sep}uploads${path.sep}`)[1]
-    .replace(/\\/g, "/");
+      .split(`${path.sep}uploads${path.sep}`)[1]
+      .replace(/\\/g, '/');
 
     const document = await Document.create({
       userId: userId || null,
       type: type || 'other',
       title,
       filePath: `uploads/${relativePath}`,
-      uploadedBy: req.user.id
+      uploadedBy: uploader.id
     });
 
-    const fullUrl = `${process.env.BASE_URL}/${document.filePath}`;
-      return successResponse(res, { ...document.toJSON(), filePath: fullUrl }, 'Document uploaded successfully');
+    const fullUrl = `${document.filePath}`;
+
+    return successResponse(
+      res,
+      {
+        ...document.toJSON(),
+        filePath: fullUrl
+      },
+      'Document uploaded successfully'
+    );
+
   } catch (error) {
+    console.error('Upload document error:', error);
+
     return errorResponse(res, error.message, 500);
   }
 };
@@ -53,7 +84,7 @@ const getAllDocuments = async (req, res) => {
     const documents = await Document.findAll({
       where,
       include: [
-        { model: User, as: 'user', attributes: ['id', 'fullName', 'email'] },
+        { model: User, as: 'user', attributes: ['id', 'fullName', 'email','batchId'] },
         { model: User, as: 'uploader', attributes: ['id', 'fullName', 'email'] }
       ],
       order: [['createdAt', 'DESC']]
@@ -62,7 +93,7 @@ const getAllDocuments = async (req, res) => {
     // Add full URL
     const docsWithUrl = documents.map(doc => ({
       ...doc.toJSON(),
-      filePath: `${process.env.BASE_URL}/${doc.filePath.replace(/\\/g, '/')}`
+      filePath: `${doc.filePath.replace(/\\/g, '/')}`
     }));
 
     return successResponse(res, docsWithUrl, 'Documents fetched successfully');
@@ -79,7 +110,7 @@ const getDocumentById = async (req, res) => {
     const { id } = req.params;
     const document = await Document.findByPk(id, {
       include: [
-        { model: User, as: 'user', attributes: ['id', 'fullName', 'email'] },
+        { model: User, as: 'user', attributes: ['id', 'fullName', 'email','batchId'] },
         { model: User, as: 'uploader', attributes: ['id', 'fullName', 'email'] }
       ]
     });
@@ -88,7 +119,7 @@ const getDocumentById = async (req, res) => {
       return errorResponse(res, 'Document not found', 404);
     }
 
-    const fullUrl = `${process.env.BASE_URL}/${document.filePath.replace(/\\/g, '/')}`;
+    const fullUrl = `${document.filePath.replace(/\\/g, '/')}`;
     return successResponse(res, { ...document.toJSON(), filePath: fullUrl }, 'Document fetched successfully');
   } catch (error) {
     return errorResponse(res, error.message, 500);
@@ -112,7 +143,7 @@ const getMyDocuments = async (req, res) => {
 
     const docsWithUrl = documents.map(doc => ({
       ...doc.toJSON(),
-      filePath: `${process.env.BASE_URL}/${doc.filePath.replace(/\\/g, '/')}`
+      filePath: `${doc.filePath.replace(/\\/g, '/')}`
     }));
 
     return successResponse(res, docsWithUrl, 'Your documents fetched successfully');
@@ -140,7 +171,7 @@ const getUserDocuments = async (req, res) => {
 
     const docsWithUrl = documents.map(doc => ({
       ...doc.toJSON(),
-      filePath: `${process.env.BASE_URL}/${doc.filePath.replace(/\\/g, '/')}`
+      filePath: `${doc.filePath.replace(/\\/g, '/')}`
     }));
 
     return successResponse(res, docsWithUrl, 'User documents fetched successfully');

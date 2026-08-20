@@ -539,7 +539,7 @@ const markAsPaid = async (req, res) => {
       return errorResponse(res, 'Return already paid', 400);
     }
 
-    returnRecord.paidOn = new Date();
+    returnRecord.paidOn = returnRecord.month;
     returnRecord.status = "active";
     await returnRecord.save();
 
@@ -554,17 +554,45 @@ const markAsPaid = async (req, res) => {
  */
 const batchMarkAsPaid = async (req, res) => {
   try {
-    const { ids } = req.body; // array of return IDs
+    const { ids } = req.body;
+
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return errorResponse(res, 'IDs array is required', 400);
     }
 
-    const [updated] = await Return.update(
-      { paidOn: new Date() },
-      { where: { id: { [Op.in]: ids }, paidOn: null } }
+    const returnRecords = await Return.findAll({
+      where: {
+        id: {
+          [Op.in]: ids
+        }
+      }
+    });
+
+    if (returnRecords.length === 0) {
+      return errorResponse(res, 'No return records found', 404);
+    }
+
+    const unpaidRecords = returnRecords.filter(
+      (record) => !record.paidOn
     );
 
-    return successResponse(res, { updated }, `${updated} returns marked as paid`);
+    if (unpaidRecords.length === 0) {
+      return errorResponse(res, 'All selected returns are already paid', 400);
+    }
+
+    // Update each record using its own month as paidOn
+    for (const returnRecord of unpaidRecords) {
+      returnRecord.paidOn = returnRecord.month;
+      returnRecord.status = 'active';
+
+      await returnRecord.save();
+    }
+
+    return successResponse(
+      res,
+      unpaidRecords,
+      `${unpaidRecords.length} returns marked as paid`
+    );
   } catch (error) {
     return errorResponse(res, error.message, 500);
   }

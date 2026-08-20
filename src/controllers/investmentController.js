@@ -149,7 +149,7 @@ const createInvestment = async (req, res) => {
 const updateInvestment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { amount, status, agreementDoc, certificateDoc, postChequeDoc } = req.body;
+    const { amount, status, agreementDoc, certificateDoc, postChequeDoc,InvestmentCode } = req.body;
 
     const investment = await Investment.findByPk(id);
     if (!investment) {
@@ -161,7 +161,8 @@ const updateInvestment = async (req, res) => {
       status: status || investment.status,
       agreementDoc: agreementDoc || investment.agreementDoc,
       certificateDoc: certificateDoc || investment.certificateDoc,
-      postChequeDoc: postChequeDoc || investment.postChequeDoc
+      postChequeDoc: postChequeDoc || investment.postChequeDoc,
+      InvestmentCode: InvestmentCode || investment.InvestmentCode
     });
 
     return successResponse(res, investment, 'Investment updated successfully');

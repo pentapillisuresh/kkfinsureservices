@@ -15,18 +15,19 @@ const uploadSingle = async (req, res) => {
     const isImage = req.file.mimetype.startsWith('image/');
 
     // If image, resize and replace original (optional)
-    if (isImage) {
-      const resizedPath = path.join(
-        path.dirname(filePath),
-        `resized-${path.basename(filePath)}`
-      );
-      await sharp(filePath)
-        .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
-        .toFile(resizedPath);
-      // Replace original with resized
-      fs.unlinkSync(filePath);
-      filePath = resizedPath;
-    }
+    // if (isImage) {
+    //   const resizedPath = path.join(
+    //     path.dirname(filePath),
+    //     `resized-${path.basename(filePath)}`
+    //   );
+    //   await sharp(filePath)
+    //     .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+    //     .toFile(resizedPath);
+    //   // Replace original with resized
+    //   fs.unlinkSync(filePath);
+    //   filePath = resizedPath;
+    // }
+    console.log("rrr::",filePath);
     const relativePath = req.file.path
     .split(`${path.sep}uploads${path.sep}`)[1]
     .replace(/\\/g, "/");

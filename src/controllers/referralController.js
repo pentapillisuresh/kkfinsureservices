@@ -47,26 +47,8 @@ const createReferral = async (req, res) => {
       offerId: offer ? offer.id : null
     });
 
-    // Award points if rewardType is points
-    let pointsEarned = 0;
-      pointsEarned = parseInt(finalRewardValue);
-      await UserPoint.create({
-        userId: referrerId,
-        points: pointsEarned,
-        source: 'referral',
-        referenceId: referral.id,
-        description: `Referral reward for investment of ₹${investmentAmount}`
-      });
-
-    // If rewardType is cashback or voucher, we'd handle elsewhere
-
-    // Update referral rewardPoints
-    referral.rewardPoints = pointsEarned;
-    await referral.save();
-
     return successResponse(res, {
-      referral,
-      pointsEarned
+      referral
     }, 'Referral created successfully');
   } catch (error) {
     return errorResponse(res, error.message, 500);
