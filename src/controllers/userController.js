@@ -1,16 +1,16 @@
 const { Op, Sequelize } = require('sequelize');
-const {User} = require('../models');
-const {Investment} = require('../models');
-const {Plan} = require('../models');        // adjust if named FalconPlan
-const {Return} = require('../models');
-const {BalanceSheet} = require('../models');
-const {Document} = require('../models');
-const {Referral} = require('../models');
-const {Ticket} = require('../models');
-const {Offer} = require('../models');
-const {UserPoint} = require('../models');
-const {Nominee} = require('../models');
-const {BankDetail} = require('../models');
+const { User } = require('../models');
+const { Investment } = require('../models');
+const { Plan } = require('../models');        // adjust if named FalconPlan
+const { Return } = require('../models');
+const { BalanceSheet } = require('../models');
+const { Document } = require('../models');
+const { Referral } = require('../models');
+const { Ticket } = require('../models');
+const { Offer } = require('../models');
+const { UserPoint } = require('../models');
+const { Nominee } = require('../models');
+const { BankDetail } = require('../models');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 const { isSeniorCitizen, calculateMonthlyReturn } = require('../utils/helpers');
 
@@ -71,7 +71,7 @@ const getInvestments = async (req, res) => {
 const getDashboardData = async (req, res) => {
   try {
     const userId = req.user.id;
-console.log("userId:::",userId)
+    console.log("userId:::", userId)
     // Fetch all active investments (you can change status filter as needed)
     const investments = await Investment.findAll({
       where: {
@@ -243,14 +243,23 @@ const getBalanceSheet = async (req, res) => {
 const getDocuments = async (req, res) => {
   try {
     const { type } = req.query;
-    const where = { userId: req.user.id };
-    if (type) where.type = type;
+    const where = {};
 
+    if (type) {
+      where.type = type;
+    }
+
+    if (type !== "company") {
+      where.userId = req.user.id;
+    }
+
+    console.log("where:", where);
     const documents = await Document.findAll({
       where,
       include: [{ model: User, as: 'uploader', attributes: ['id', 'fullName', 'email'] }],
       order: [['createdAt', 'DESC']]
     });
+    console.log("documents::", documents)
 
     // Add full URL
     const docsWithUrl = documents.map(doc => ({
