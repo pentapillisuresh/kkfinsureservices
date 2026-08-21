@@ -67,7 +67,7 @@ const login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRY || '3y' }
     );
-    console.log("token::",token)
+
     // Return user data without password
     const userData = user.toJSON();
     delete userData.password;

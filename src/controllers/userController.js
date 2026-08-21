@@ -71,7 +71,7 @@ const getInvestments = async (req, res) => {
 const getDashboardData = async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log("userId:::", userId)
+
     // Fetch all active investments (you can change status filter as needed)
     const investments = await Investment.findAll({
       where: {
@@ -253,13 +253,12 @@ const getDocuments = async (req, res) => {
       where.userId = req.user.id;
     }
 
-    console.log("where:", where);
+
     const documents = await Document.findAll({
       where,
       include: [{ model: User, as: 'uploader', attributes: ['id', 'fullName', 'email'] }],
       order: [['createdAt', 'DESC']]
     });
-    console.log("documents::", documents)
 
     // Add full URL
     const docsWithUrl = documents.map(doc => ({

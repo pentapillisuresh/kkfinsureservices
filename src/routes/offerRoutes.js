@@ -3,7 +3,6 @@ const router = express.Router();
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 const offerController = require('../controllers/offerController');
 
-console.log("offer")
 // Any authenticated user can view active offers
 router.get('/', authenticate, offerController.getAllOffers);
 router.get('/:id', authenticate, offerController.getOfferById);

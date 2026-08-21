@@ -95,8 +95,8 @@ const getActiveOffers = async (req, res) => {
 
 const getAllOffers = async (req, res) => {
   try {
-    console.log("Fetching all offers...");
 
+    
     const offers = await Offer.findAll({
       order: [["createdAt", "DESC"]],
     });

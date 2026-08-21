@@ -27,7 +27,7 @@ const uploadSingle = async (req, res) => {
     //   fs.unlinkSync(filePath);
     //   filePath = resizedPath;
     // }
-    console.log("rrr::",filePath);
+
     const relativePath = req.file.path
     .split(`${path.sep}uploads${path.sep}`)[1]
     .replace(/\\/g, "/");
