@@ -64,7 +64,7 @@ const getAllReturns = async (req, res) => {
       userId,
       investmentId,
       type,
-      month,
+      month,status,
       search,
       limit = 20,
       offset = 0
@@ -78,6 +78,10 @@ const getAllReturns = async (req, res) => {
     // User filter
     if (userId) {
       where.userId = userId;
+    }
+
+    if (status) {
+      where.status = status;
     }
 
     // Investment filter

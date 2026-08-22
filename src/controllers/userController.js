@@ -171,7 +171,13 @@ const getDashboardData = async (req, res) => {
     if (lastPaymentMonth) {
       lastPaymentTotal = monthlyReturnsMap[lastPaymentMonth] || 0;
     }
-
+    const monthlyReturns = await Return.findAll({
+      where: {
+        userId,
+        status: 'active'
+      }
+    });
+    
     // Upcoming maturity
     const today = new Date();
     const upcomingMaturity = investments
@@ -191,13 +197,7 @@ const getDashboardData = async (req, res) => {
         upcomingMaturity: upcomingMaturity ? upcomingMaturity.maturityDate : null,
         upcomingMaturityInvestmentId: upcomingMaturity ? upcomingMaturity.id : null,
       },
-      // monthlyReturns: Object.keys(monthlyReturnsMap)
-      //   .sort()
-      //   .map(month => ({
-      //     month,
-      //     totalAmount: monthlyReturnsMap[month]
-      //   })),
-      monthlyReturns: investments,
+      monthlyReturns: monthlyReturns,
       investments: investmentDetails,
     };
 

@@ -41,7 +41,7 @@ module.exports = (sequelize) => {
       allowNull: true
     },
     type: {
-      type: DataTypes.ENUM('monthly', 'annual_bonus', 'quarterly_senior','offer'),
+      type: DataTypes.ENUM('monthly', 'annual_bonus', 'quarterly_senior','offer','maturity'),
       defaultValue: 'monthly'
     },
     status: {
