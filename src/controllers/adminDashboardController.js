@@ -1,23 +1,20 @@
 const { Op, Sequelize } = require('sequelize');
-const {User} = require('../models');
-const {Investment} = require('../models');
-const {Return} = require('../models');
-const {Ticket} = require('../models');
+const { User, Investment, Return, PartnerCommission, Ticket } = require('../models');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 
 /**
  * Get admin dashboard statistics
- * Includes: user counts, active investments, total returns, pending tickets,
- * monthly new users & investments (last 6 months), investment status breakdown,
- * and recent users list.
+ * Includes: user counts, investments, returns, commissions, pending tickets,
+ * monthly activity, recent users, and investment breakdown.
  */
 const getDashboardData = async (req, res) => {
   try {
     const now = new Date();
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
     const currentYear = now.getFullYear();
 
-    // --- 1. Total Users ---
+    // ---- 1. User stats ----
     const totalUsers = await User.count({ where: { role: 'user' } });
     const newUsersThisMonth = await User.count({
       where: {
@@ -26,26 +23,53 @@ const getDashboardData = async (req, res) => {
       }
     });
 
-    // --- 2. Active Investments ---
+    // ---- 2. Investment stats ----
     const activeInvestments = await Investment.count({ where: { status: 'active' } });
     const maturedInvestments = await Investment.count({ where: { status: 'matured' } });
+    const totalInvestments = await Investment.count(); // all investments
+    const totalInvestedAmount = await Investment.sum('amount') || 0;
 
-    // --- 3. Total Returns (this month) ---
-    const totalReturnsThisMonth = await Return.sum('amount', {
+    // ---- 3. Return stats ----
+    // Current month pending returns (month within current month, status = 'pending')
+    const pendingReturnsCurrentMonth = await Return.sum('amount', {
       where: {
-        status:"active",
-        paidOn: { [Op.gte]: currentMonthStart },
-        type: 'monthly' // only monthly returns (or all, but we stick to monthly)
+        status: 'pending',
+        month: { [Op.between]: [currentMonthStart, currentMonthEnd] }
       }
     }) || 0;
 
-    // --- 4. Pending Tickets ---
+    // Current month paid returns (status = 'active' and paidOn within current month)
+    const paidReturnsCurrentMonth = await Return.sum('amount', {
+      where: {
+        status: 'active',
+        paidOn: { [Op.between]: [currentMonthStart, currentMonthEnd] }
+      }
+    }) || 0;
+
+    // Overall pending returns (all returns with status 'pending')
+    const overallPendingReturns = await Return.sum('amount', {
+      where: { status: 'pending' }
+    }) || 0;
+
+    // Overall paid returns (all returns with status 'active')
+    const overallPaidReturns = await Return.sum('amount', {
+      where: { status: 'active' }
+    }) || 0;
+
+    // Overall returns (total) – optional, but can be used
+    const totalReturnsOverall = overallPaidReturns + overallPendingReturns;
+
+    // ---- 4. Commission stats ----
+    const totalCommissionPaid = await PartnerCommission.sum('commissionAmount', {
+      where: { status: 'paid' }
+    }) || 0;
+
+    // ---- 5. Pending Tickets ----
     const pendingTickets = await Ticket.count({
       where: { status: { [Op.in]: ['open', 'in-progress'] } }
     });
 
-    // --- 5. Monthly Activity (last 6 months: new users & investments) ---
-    // Prepare an array of the last 6 month-start dates
+    // ---- 6. Monthly Activity (last 6 months) ----
     const months = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(currentYear, now.getMonth() - i, 1);
@@ -74,7 +98,7 @@ const getDashboardData = async (req, res) => {
       };
     }));
 
-    // --- 6. Recent Users (last 10) ---
+    // ---- 7. Recent Users (last 10) ----
     const recentUsers = await User.findAll({
       where: { role: 'user' },
       attributes: ['id', 'fullName', 'email', 'phone', 'isActive', 'createdAt'],
@@ -82,7 +106,7 @@ const getDashboardData = async (req, res) => {
       limit: 10
     });
 
-    // --- 7. Investment status breakdown (for pie/overview) ---
+    // ---- 8. Investment status breakdown ----
     const investmentStatusCounts = await Investment.findAll({
       attributes: ['status', [Sequelize.fn('COUNT', Sequelize.col('status')), 'count']],
       group: ['status']
@@ -93,23 +117,31 @@ const getDashboardData = async (req, res) => {
       count: item.dataValues.count
     }));
 
-    // --- 8. Additional: Total returns overall (for optional display) ---
-    const totalReturnsOverall = await Return.sum('amount', {
-      where: {
-        status:"active",
-      }
-    }) || 0;
-
-    // --- 9. Response ---
+    // ---- 9. Response ----
     const dashboardData = {
       stats: {
+        // Users
         totalUsers,
         newUsersThisMonth,
+
+        // Investments
         activeInvestments,
         maturedInvestments,
-        totalReturnsThisMonth,
-        totalReturnsOverall,
-        pendingTickets
+        totalInvestments,
+        totalInvestedAmount,
+
+        // Returns
+        pendingReturnsCurrentMonth,
+        paidReturnsCurrentMonth,
+        overallPendingReturns,
+        overallPaidReturns,
+        totalReturnsOverall, // optional
+
+        // Commissions
+        totalCommissionPaid,
+
+        // Tickets
+        pendingTickets,
       },
       monthlyActivity: monthlyStats,
       investmentOverview: statusBreakdown,
