@@ -96,13 +96,7 @@ module.exports = (sequelize, D) => {
         const prefix = `KKFI${yearMonth}`;
 
         // Count existing users with batchId starting with this prefix
-        const count = await sequelize.models.User.count({
-          where: {
-            batchId: {
-              [Op.like]: `${prefix}`
-            }
-          }
-        });
+        const count = await sequelize.models.User.count();
 
         // Next sequence number: count + 1, pad to 2 digits (will auto‑expand beyond 99)
         const nextNumber = count + 1;

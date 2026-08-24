@@ -552,10 +552,6 @@ const deleteCompanyDocument = async (req, res) => {
 };
 
 /**
- * Generate balance sheet for a user (admin)
- */
-
-/**
  * Generate an Excel file from balance sheet data
  */
 

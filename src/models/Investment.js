@@ -57,10 +57,10 @@ module.exports = (sequelize) => {
       defaultValue: false,
       comment: 'DPC check uploaded by admin'
     }
-  },{
+  }, {
     hooks: {
       beforeCreate: async (invest) => {
-       
+
         // Generate batch ID: KKFI-YYYYMM-XX
         const now = new Date();
         const year = now.getFullYear();
@@ -69,13 +69,7 @@ module.exports = (sequelize) => {
         const prefix = `INV${yearMonth}`;
 
         // Count existing users with batchId starting with this prefix
-        const count = await sequelize.models.Investment.count({
-          where: {
-            InvestmentCode: {
-              [Op.like]: `${prefix}`
-            }
-          }
-        });
+        const count = await sequelize.models.Investment.count();
 
         // Next sequence number: count + 1, pad to 2 digits (will auto‑expand beyond 99)
         const nextNumber = count + 1;
@@ -90,8 +84,8 @@ module.exports = (sequelize) => {
     Investment.belongsTo(models.Plan, {
       foreignKey: 'planId',
       as: 'plan'
-  });
-      Investment.hasMany(models.Return, { foreignKey: 'investmentId', as: 'returns' });
+    });
+    Investment.hasMany(models.Return, { foreignKey: 'investmentId', as: 'returns' });
   };
 
   return Investment;

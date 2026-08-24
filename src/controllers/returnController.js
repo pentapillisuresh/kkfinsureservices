@@ -256,66 +256,177 @@ const getReturnById = async (req, res) => {
  */
 const generateReturnByUser = async (req, res) => {
   const transaction = await sequelize.transaction();
+
   try {
-    const { month, investmentId, offerId } = req.body; // YYYY-MM-DD
-    if (!month) {
-      return errorResponse(res, 'Month is required (YYYY-MM-DD)', 400);
+    const {
+      userId,
+      investmentId,
+      month,
+      monthNo,
+      amount,
+      ROI,paidOn,
+      type,
+      status,
+      description
+    } = req.body;
+
+    // ----------------------------------------
+    // Required fields
+    // ----------------------------------------
+    if (!userId) {
+      await transaction.rollback();
+      return errorResponse(res, 'userId is required', 400);
     }
 
-    const monthDate = new Date(month);
-    const year = monthDate.getFullYear();
-    const monthIndex = monthDate.getMonth();
+    if (!investmentId) {
+      await transaction.rollback();
+      return errorResponse(res, 'investmentId is required', 400);
+    }
 
-    // Get all active investments
+    if (!month) {
+      await transaction.rollback();
+      return errorResponse(res, 'month is required (YYYY-MM-DD)', 400);
+    }
+
+    if (amount === undefined || amount === null) {
+      await transaction.rollback();
+      return errorResponse(res, 'amount is required', 400);
+    }
+
+    // ----------------------------------------
+    // Validate month
+    // ----------------------------------------
+    const monthDate = new Date(month);
+
+    if (isNaN(monthDate.getTime())) {
+      await transaction.rollback();
+      return errorResponse(
+        res,
+        'Invalid month format. Use YYYY-MM-DD',
+        400
+      );
+    }
+
+    // Normalize month to first day
+    const returnMonth = new Date(
+      monthDate.getFullYear(),
+      monthDate.getMonth(),
+      1
+    );
+
+    // If monthNo is not provided, calculate it
+    const generatedMonthNo = monthNo || (returnMonth.getMonth() + 1);
+
+    // ----------------------------------------
+    // Check User
+    // ----------------------------------------
+    const user = await User.findOne({
+      where: {
+        id: userId
+      },
+      transaction
+    });
+
+    if (!user) {
+      await transaction.rollback();
+      return errorResponse(res, 'User not found', 404);
+    }
+
+    // ----------------------------------------
+    // Check Investment
+    // ----------------------------------------
     const investment = await Investment.findOne({
       where: {
-        status: 'active',
         id: investmentId,
-        maturityDate: { [Op.gt]: new Date() }
-      },
-      include: [
-        { model: User, as: 'user' },
-        { model: Plan, as: 'plan' }
-      ],
-      transaction
-    });
-
-    const user = investment.user;
-    const plan = investment.plan;
-    const monthlyAmount = calculateMonthlyReturn(investment.amount, plan.monthlyReturnPercent);
-
-    // Check if senior citizen
-    const isSenior = user.isSeniorCitizen || isSeniorCitizen(user.dateOfBirth);
-    let returnType = 'monthly';
-    let amount = monthlyAmount;
-
-    // Check if return already exists for this month and investment
-    const existing = await Return.findOne({
-      where: {
-        investmentId: investment.id,
-        month: monthDate,
-        type: returnType
+        userId: userId
       },
       transaction
     });
 
-    if (!existing) {
-      await Return.create({
-        investmentId: investment.id,
-        userId: user.id,
-        month: monthDate,
-        amount,
-        offerId,
-        type: returnType,
-        paidOn: new Date()
-      }, { transaction });
+    if (!investment) {
+      await transaction.rollback();
+
+      return errorResponse(
+        res,
+        'Investment not found or does not belong to this user',
+        404
+      );
     }
 
+    // ----------------------------------------
+    // Check duplicate return
+    // ----------------------------------------
+    const existing = await Return.findOne({
+      where: {
+        userId,
+        investmentId,
+        month: returnMonth,
+        type: type || 'monthly'
+      },
+      transaction
+    });
+
+    if (existing) {
+      await transaction.rollback();
+
+      return errorResponse(
+        res,
+        'Return already exists for this user, investment and month',
+        409
+      );
+    }
+
+    // ----------------------------------------
+    // Create Return
+    // ----------------------------------------
+    const newReturn = await Return.create(
+      {
+        userId,
+
+        investmentId,
+
+        month: returnMonth,
+
+        monthNo: generatedMonthNo,
+
+        amount,
+
+        ROI: ROI ?? null,
+
+        type: type || 'monthly',
+
+        status: status || 'pending',
+
+        paidOn: paidOn,
+
+        description: description || null
+      },
+      {
+        transaction
+      }
+    );
+
+    // ----------------------------------------
+    // Commit
+    // ----------------------------------------
     await transaction.commit();
-    return successResponse(res, `return generated for month ${month}`);
+
+    return successResponse(
+      res,
+      'Return generated successfully',
+      newReturn
+    );
+
   } catch (error) {
     await transaction.rollback();
-    return errorResponse(res, error.message, 500);
+
+    console.error('Generate return error:', error);
+
+    return errorResponse(
+      res,
+      error.message,
+      500
+    );
   }
 };
 
@@ -421,18 +532,6 @@ const generateReturns = async (req, res) => {
       let returnType = 'monthly';
       let amount = monthlyAmount;
 
-      // if (isSenior) {
-      //   // Only generate quarterly on first month of quarter
-      //   if (monthIndex % 3 === 0) {
-      //     returnType = 'quarterly_senior';
-      //     amount = monthlyAmount * 3;
-      //   } else {
-      //     // Skip this month for seniors (only quarterly)
-      //     continue;
-      //   }
-      // }
-
-      // Check if return already exists for this month and investment
       const existing = await Return.findOne({
         where: {
           investmentId: investment.id,
@@ -602,6 +701,58 @@ const batchMarkAsPaid = async (req, res) => {
   }
 };
 
+const deleteReturn = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      await transaction.rollback();
+      return errorResponse(res, 'Return ID is required', 400);
+    }
+
+    // Find return
+    const returnRecord = await Return.findOne({
+      where: {
+        id
+      },
+      transaction
+    });
+
+    if (!returnRecord) {
+      await transaction.rollback();
+      return errorResponse(res, 'Return not found', 404);
+    }
+
+    // Delete return
+    await Return.destroy({
+      where: {
+        id
+      },
+      transaction
+    });
+
+    await transaction.commit();
+
+    return successResponse(
+      res,
+      'Return deleted successfully'
+    );
+
+  } catch (error) {
+    await transaction.rollback();
+
+    console.error('Delete return error:', error);
+
+    return errorResponse(
+      res,
+      error.message,
+      500
+    );
+  }
+};
+
 module.exports = {
   getMyReturns,
   getMyReturnSummary,
@@ -612,5 +763,6 @@ module.exports = {
   generateAnnualBonuses,
   markAsPaid,updateReturn,
   generateReturnByUser,
-  batchMarkAsPaid
+  batchMarkAsPaid,
+  deleteReturn
 };
