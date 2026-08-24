@@ -16,7 +16,6 @@ const getMyReturns = async (req, res) => {
     const where = { userId: req.user.id };
     if (type) where.type = type;
     if (month) where.month = month;
-    where.status = "active";
     const { count, rows } = await Return.findAndCountAll({
       where,
       include: [{ model: Investment, as: 'investment' }],
