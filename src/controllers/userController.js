@@ -1,4 +1,4 @@
-const { Op, Sequelize } = require('sequelize');
+const { Op, Sequelize, where } = require('sequelize');
 const { User } = require('../models');
 const { Investment } = require('../models');
 const { Plan } = require('../models');        // adjust if named FalconPlan
@@ -184,6 +184,12 @@ const getDashboardData = async (req, res) => {
       .filter(inv => new Date(inv.maturityDate) > today)
       .sort((a, b) => new Date(a.maturityDate) - new Date(b.maturityDate))[0];
 
+    const activeOffers = await Offer.count({
+      where: {
+        isActive: true
+      }
+    });
+
     // Build final response
     const dashboardData = {
       summary: {
@@ -194,6 +200,7 @@ const getDashboardData = async (req, res) => {
         totalProfit: totalPaidReturns,
         lastPaymentTotal: lastPaymentTotal,
         lastPaymentMonth: lastPaymentMonth,
+        activeOffers:activeOffers,
         upcomingMaturity: upcomingMaturity ? upcomingMaturity.maturityDate : null,
         upcomingMaturityInvestmentId: upcomingMaturity ? upcomingMaturity.id : null,
       },

@@ -34,7 +34,15 @@ module.exports = (sequelize) => {
     },
     maturityDate: {
       type: DataTypes.DATE,
-      allowNull: false
+      allowNull: true
+    },
+    startReturnDate: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    endReturnDate: {
+      type: DataTypes.DATE,
+      allowNull: true
     },
     status: {
       type: DataTypes.ENUM('active', 'matured', 'closed'),

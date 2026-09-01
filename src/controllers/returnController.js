@@ -21,7 +21,8 @@ const getMyReturns = async (req, res) => {
       include: [{ model: Investment, as: 'investment' }],
       order: [['month', 'DESC']],
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
+      distinct: true,
     });
 
     return successResponse(res, {
