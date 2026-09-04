@@ -28,12 +28,14 @@ const getProfile = async (req, res) => {
         { model: User, as: 'creator', attributes: ['id', 'fullName', 'email'] }
       ]
     });
-
     if (!user) {
       return errorResponse(res, 'User not found', 404);
     }
-
-    return successResponse(res, user, 'Profile fetched successfully');
+    const investmentCount = await Investment.count({ where: { userId: req.user.id } });
+    const returnCount = await Return.count({ where: { userId: req.user.id } });
+    const referralCount = await Referral.count({ where: { referrerId: req.user.id } });
+    const data = { user, investmentCount, returnCount, referralCount }
+    return successResponse(res, data, 'Profile fetched successfully');
   } catch (error) {
     return errorResponse(res, error.message, 500);
   }
@@ -152,6 +154,7 @@ const getDashboardData = async (req, res) => {
       investmentDetails.push({
         id: inv.id,
         amount: inv.amount,
+        InvestmentCode: inv.InvestmentCode,
         planName: inv.plan ? inv.plan.name : null,
         investmentDate: inv.investmentDate,
         maturityDate: inv.maturityDate,
@@ -177,7 +180,7 @@ const getDashboardData = async (req, res) => {
         status: 'active'
       }
     });
-    
+
     // Upcoming maturity
     const today = new Date();
     const upcomingMaturity = investments
@@ -200,7 +203,7 @@ const getDashboardData = async (req, res) => {
         totalProfit: totalPaidReturns,
         lastPaymentTotal: lastPaymentTotal,
         lastPaymentMonth: lastPaymentMonth,
-        activeOffers:activeOffers,
+        activeOffers: activeOffers,
         upcomingMaturity: upcomingMaturity ? upcomingMaturity.maturityDate : null,
         upcomingMaturityInvestmentId: upcomingMaturity ? upcomingMaturity.id : null,
       },

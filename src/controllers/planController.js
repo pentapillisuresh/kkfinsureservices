@@ -1,4 +1,5 @@
 const {Plan} = require('../models');
+const { Investment } = require('../models');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 const { DEFAULTS } = require('../utils/constants');
 

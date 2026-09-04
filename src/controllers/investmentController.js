@@ -71,8 +71,8 @@ const createInvestment = async (req, res) => {
     // 7. Create referral if user has referrerId
     if (user.referrerId) {
       // Calculate reward as 1.5% of investment amount
-      const rewardValue = (amount * 0.015).toFixed(2);
-      const rewardPoints = Math.round(amount * 0.015);
+      const rewardValue = (amount * 0.01).toFixed(2);
+      const rewardPoints = Math.round(amount * 0.01);
 
       // Find applicable offer
       const now = new Date();

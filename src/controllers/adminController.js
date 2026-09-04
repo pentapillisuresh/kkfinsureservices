@@ -660,7 +660,7 @@ const generateBalanceSheet = async (req, res) => {
     const totalReturns = returns.reduce((sum, r) => sum + parseFloat(r.amount), 0);
     const totalCommissions = commissions.reduce((sum, c) => sum + parseFloat(c.commissionAmount), 0);
     const totalInflow = totalReturns + totalCommissions;
-    const netWorth = totalInflow - totalOutflow;
+    const netWorth = totalInflow + totalOutflow;
 
     // Prepare data object
     const balanceSheetData = {
@@ -824,7 +824,7 @@ const getMyBalanceSheetGenerateById = async (req, res) => {
     const totalReturns = returns.reduce((sum, r) => sum + parseFloat(r.amount), 0);
     const totalCommissions = commissions.reduce((sum, c) => sum + parseFloat(c.commissionAmount), 0);
     const totalInflow = totalReturns + totalCommissions;
-    const netWorth = totalInflow - totalOutflow;
+    const netWorth = totalInflow + totalOutflow;
 
     // Prepare data object
     const balanceSheetData = {

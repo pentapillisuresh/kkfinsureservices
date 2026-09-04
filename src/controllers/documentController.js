@@ -2,6 +2,7 @@ const {Document} = require('../models');
 const {User} = require('../models');
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 const fs = require('fs');
+const { Op } = require("sequelize");
 const path = require("path");
 
 /**
@@ -132,12 +133,17 @@ const getDocumentById = async (req, res) => {
 const getMyDocuments = async (req, res) => {
   try {
     const { type } = req.query;
-    const where = { userId: req.user.id };
-    if (type) where.type = type;
+    const where = {
+      [Op.or]: [
+        { userId: req.user.id },
+        { userId: null }
+      ]
+    };
+        if (type) where.type = type;
 
     const documents = await Document.findAll({
       where,
-      include: [{ model: User, as: 'uploader', attributes: ['id', 'fullName', 'email'] }],
+      include: [{ model: User, as: 'uploader', attributes: ['id', 'fullName', 'email',] }],
       order: [['createdAt', 'DESC']]
     });
 
