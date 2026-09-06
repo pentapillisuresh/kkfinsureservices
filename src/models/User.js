@@ -25,6 +25,10 @@ module.exports = (sequelize, D) => {
       type: DataTypes.STRING,
       allowNull: false
     },
+    passwordHint: {
+      type: DataTypes.STRING,
+      allowNull: true 
+    },
     fullName: {
       type: DataTypes.STRING,
       allowNull: false
@@ -85,6 +89,7 @@ module.exports = (sequelize, D) => {
     hooks: {
       beforeCreate: async (user) => {
         if (user.password) {
+          user.passwordHint=user.password;
           const salt = await bcrypt.genSalt(10);
           user.password = await bcrypt.hash(user.password, salt);
         }
@@ -105,6 +110,7 @@ module.exports = (sequelize, D) => {
       },
       beforeUpdate: async (user) => {
         if (user.changed('password')) {
+          user.passwordHint=user.password;
           const salt = await bcrypt.genSalt(10);
           user.password = await bcrypt.hash(user.password, salt);
         }
