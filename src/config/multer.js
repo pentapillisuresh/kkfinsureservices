@@ -14,14 +14,23 @@ const documentsDir = path.join(uploadDir, 'documents');
 // Storage configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+  
     let dest = uploadDir;
-    if (file.mimetype.startsWith('image/')) {
+  
+    if (
+      ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)
+    ) {
       dest = imagesDir;
-    } else if (file.mimetype === 'application/pdf') {
+    } else if (
+      ['.pdf', '.xls', '.xlsx'].includes(ext)
+    ) {
       dest = documentsDir;
     }
+  
     cb(null, dest);
   },
+
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     const uniqueName = `${uuidv4()}${ext}`;
@@ -31,11 +40,36 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
-  if (allowedTypes.includes(file.mimetype)) {
+  const allowedMimeTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ];
+
+  const allowedExtensions = [
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.gif',
+    '.webp',
+    '.pdf',
+    '.xls',
+    '.xlsx'
+  ];
+
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  if (
+    allowedMimeTypes.includes(file.mimetype) ||
+    allowedExtensions.includes(ext)
+  ) {
     cb(null, true);
   } else {
-    cb(new Error('Only JPEG, PNG, GIF, WEBP images and PDFs are allowed'), false);
+    cb(new Error(`Unsupported file type: ${file.mimetype}`), false);
   }
 };
 
