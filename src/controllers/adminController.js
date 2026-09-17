@@ -345,9 +345,11 @@ const getUserDetails = async (req, res) => {
         { model: Nominee, as: 'nominee' },
         { model: BankDetail, as: 'bankDetail' },
         { model: User, as: 'creator', attributes: ['id', 'fullName', 'email'] },
-        { model: Investment, as: 'investments',include: [
-          { model: Plan, as: 'plan' }
-        ], },
+        {
+          model: Investment, as: 'investments', include: [
+            { model: Plan, as: 'plan' }
+          ],
+        },
         { model: Return, as: 'returns' },
         { model: Document, as: 'documents' },
       ]
@@ -369,29 +371,44 @@ const getUserDetails = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { fullName, phone, dateOfBirth, batchId, pan, aadhar, address, nomineeId, isSeniorCitizen, partnerType, partnerCommissionRate, isActive } = req.body;
+    const { fullName, phone, email, password, dateOfBirth, batchId, pan, aadhar, address, nomineeId, isSeniorCitizen, partnerType, partnerCommissionRate, isActive } = req.body;
 
     const user = await User.findByPk(id);
     if (!user) {
       return errorResponse(res, 'User not found', 404);
     }
 
-    // Update allowed fields
-    await user.update({
+    const updateData = {
       fullName: fullName || user.fullName,
       phone: phone || user.phone,
+      email: email || user.email,
       dateOfBirth: dateOfBirth || user.dateOfBirth,
       pan: pan || user.pan,
       aadhar: aadhar || user.aadhar,
       batchId: batchId || user.batchId,
       address: address || user.address,
       nomineeId: nomineeId || user.nomineeId,
-      isSeniorCitizen: isSeniorCitizen !== undefined ? isSeniorCitizen : user.isSeniorCitizen,
+      isSeniorCitizen:
+        isSeniorCitizen !== undefined
+          ? isSeniorCitizen
+          : user.isSeniorCitizen,
       partnerType: partnerType || user.partnerType,
-      partnerCommissionRate: partnerCommissionRate !== undefined ? partnerCommissionRate : user.partnerCommissionRate,
-      isActive: isActive !== undefined ? isActive : user.isActive
-    });
-
+      partnerCommissionRate:
+        partnerCommissionRate !== undefined
+          ? partnerCommissionRate
+          : user.partnerCommissionRate,
+      isActive: isActive !== undefined
+        ? isActive
+        : user.isActive
+    };
+    
+    // Only include password if provided
+    if (password) {
+      updateData.password = password;
+    }
+    
+    await user.update(updateData);
+    
     return successResponse(res, { id: user.id }, 'User updated successfully');
   } catch (error) {
     return errorResponse(res, error.message, 500);
@@ -585,7 +602,7 @@ const generateBalanceSheet = async (req, res) => {
       where: {
         userId,
         paidOn: { [Op.between]: [start, end] },
-        status:'active'
+        status: 'active'
       },
       attributes: ['id', 'amount', 'paidOn', 'type', 'ROI']
     });
@@ -609,7 +626,7 @@ const generateBalanceSheet = async (req, res) => {
         date: inv.investmentDate,
         description: `Investment in Plan ${inv.planId}`,
         type: 'investment',
-        amount: -parseFloat(inv.amount),
+        amount: parseFloat(inv.amount),
         referenceId: inv.id
       });
     }
@@ -720,7 +737,7 @@ const generateBalanceSheet = async (req, res) => {
 
 const getMyBalanceSheetGenerateById = async (req, res) => {
   try {
-    const {  periodStart, periodEnd } = req.body;
+    const { periodStart, periodEnd } = req.body;
     const userId = req.user.id;
     if (!userId || !periodStart || !periodEnd) {
       return errorResponse(res, 'userId, periodStart, and periodEnd are required', 400);
@@ -749,7 +766,7 @@ const getMyBalanceSheetGenerateById = async (req, res) => {
       where: {
         userId,
         paidOn: { [Op.between]: [start, end] },
-        status:'active'
+        status: 'active'
       },
       attributes: ['id', 'amount', 'paidOn', 'type', 'ROI']
     });
@@ -773,7 +790,7 @@ const getMyBalanceSheetGenerateById = async (req, res) => {
         date: inv.investmentDate,
         description: `Investment in Plan ${inv.planId}`,
         type: 'investment',
-        amount: -parseFloat(inv.amount),
+        amount: parseFloat(inv.amount),
         referenceId: inv.id
       });
     }
