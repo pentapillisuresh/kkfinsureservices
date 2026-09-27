@@ -9,7 +9,7 @@ module.exports = (sequelize) => {
       primaryKey: true
     },
     InvestmentCode: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING, 
       allowNull: true,
       comment: 'Format: INV-YYYYMM-XX (e.g. INV-202501-01)'
     },

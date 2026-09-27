@@ -162,54 +162,300 @@ const createInvestment = async (req, res) => {
  * Update investment (admin only)
  */
 const updateInvestment = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const { amount, status, agreementDoc, certificateDoc, postChequeDoc,InvestmentCode } = req.body;
+    const {
+      userId,
+      planId,
+      amount,
+      investmentDate,
+      maturityDate,
+      startReturnDate,
+      endReturnDate,
+      status,
+      agreementDoc,
+      certificateDoc,
+      postChequeDoc,
+      InvestmentCode,
+    } = req.body;
 
-    const investment = await Investment.findByPk(id);
+    // 1. Find existing investment
+    const investment = await Investment.findByPk(id, { transaction });
     if (!investment) {
+      await transaction.rollback();
       return errorResponse(res, 'Investment not found', 404);
     }
 
-    await investment.update({
-      amount: amount || investment.amount,
-      status: status || investment.status,
-      agreementDoc: agreementDoc || investment.agreementDoc,
-      certificateDoc: certificateDoc || investment.certificateDoc,
-      postChequeDoc: postChequeDoc || investment.postChequeDoc,
-      InvestmentCode: InvestmentCode || investment.InvestmentCode
+    // 2. Validate user if being changed
+    let user = null;
+    const effectiveUserId = userId || investment.userId;
+    user = await User.findByPk(effectiveUserId, { transaction });
+    if (!user) {
+      await transaction.rollback();
+      return errorResponse(res, 'User not found', 404);
+    }
+
+    // 3. Validate plan if being changed
+    const effectivePlanId = planId || investment.planId;
+    const plan = await Plan.findByPk(effectivePlanId, { transaction });
+    if (!plan) {
+      await transaction.rollback();
+      return errorResponse(res, 'Plan not found', 404);
+    }
+    if (!plan.isActive) {
+      await transaction.rollback();
+      return errorResponse(res, 'Plan is not active', 400);
+    }
+
+    // 4. Determine effective amount and validate range
+    const effectiveAmount = amount !== undefined ? amount : investment.amount;
+    if (effectiveAmount < plan.minInvestment || effectiveAmount > plan.maxInvestment) {
+      await transaction.rollback();
+      return errorResponse(
+        res,
+        `Investment amount must be between ${plan.minInvestment} and ${plan.maxInvestment}`,
+        400
+      );
+    }
+
+    // 5. Parse dates
+    const investmentDateObj = investmentDate
+      ? new Date(investmentDate)
+      : investment.investmentDate;
+
+    const startReturnDateObj = startReturnDate
+      ? new Date(startReturnDate)
+      : investment.startReturnDate;
+
+    const endReturnDateObj = endReturnDate
+      ? new Date(endReturnDate)
+      : investment.endReturnDate;
+
+    // 6. Determine maturity date
+    let finalMaturityDate;
+    if (maturityDate) {
+      finalMaturityDate = new Date(maturityDate);
+    } else if (investmentDate || planId) {
+      // Recalculate if investment date or plan changed
+      finalMaturityDate = calculateMaturityDate(investmentDateObj, plan.maturityPeriod);
+    } else {
+      finalMaturityDate = investment.maturityDate;
+    }
+
+    // 7. Determine if we need to regenerate returns
+    const amountChanged = amount !== undefined && parseFloat(amount) !== parseFloat(investment.amount);
+    const planChanged = planId !== undefined && planId !== investment.planId;
+    const datesChanged =
+      (investmentDate && new Date(investmentDate).getTime() !== new Date(investment.investmentDate).getTime()) ||
+      (startReturnDate && new Date(startReturnDate).getTime() !== new Date(investment.startReturnDate).getTime()) ||
+      (endReturnDate && new Date(endReturnDate).getTime() !== new Date(investment.endReturnDate).getTime());
+    const userChanged = userId !== undefined && userId !== investment.userId;
+
+    const shouldRegenerateReturns = amountChanged || planChanged || datesChanged || userChanged;
+
+    // 8. Update investment fields
+    await investment.update(
+      {
+        userId: effectiveUserId,
+        planId: effectivePlanId,
+        amount: effectiveAmount,
+        investmentDate: investmentDateObj,
+        startReturnDate: startReturnDateObj,
+        endReturnDate: endReturnDateObj,
+        maturityDate: finalMaturityDate,
+        status: status || investment.status,
+        agreementDoc: agreementDoc !== undefined ? agreementDoc : investment.agreementDoc,
+        certificateDoc: certificateDoc !== undefined ? certificateDoc : investment.certificateDoc,
+        postChequeDoc: postChequeDoc !== undefined ? postChequeDoc : investment.postChequeDoc,
+        InvestmentCode: InvestmentCode || investment.InvestmentCode,
+      },
+      { transaction }
+    );
+
+    // 9. Regenerate returns if needed
+    if (shouldRegenerateReturns) {
+      // Delete existing returns (only non-paid ones? or all?)
+      // Safer to only delete pending returns, preserving paid history
+      await Return.destroy({
+        where: {
+          investmentId: investment.id,
+        },
+        transaction,
+      });
+
+      // Regenerate returns (same logic as createInvestment)
+      const monthlyReturnAmount = (effectiveAmount * plan.monthlyReturnPercent) / 100;
+      const isSenior = user.isSeniorCitizen;
+
+      const firstReturnMonth = new Date(
+        startReturnDateObj.getFullYear(),
+        startReturnDateObj.getMonth() + 1,
+        1
+      );
+      const lastReturnMonth = new Date(
+        endReturnDateObj.getFullYear(),
+        endReturnDateObj.getMonth() + 1,
+        1
+      );
+
+      let monthNumber = 1;
+      let quarterNumber = 1;
+      let currentMonth = new Date(firstReturnMonth);
+
+      while (currentMonth <= lastReturnMonth) {
+        // ---- Monthly Return ----
+        const monthlyROI = parseFloat(plan.monthlyReturnPercent) * monthNumber;
+        await Return.create(
+          {
+            investmentId: investment.id,
+            userId: user.id,
+            month: currentMonth,
+            amount: monthlyReturnAmount,
+            type: 'monthly',
+            monthNo: monthNumber,
+            ROI: monthlyROI,
+            paidOn: null,
+          },
+          { transaction }
+        );
+
+        // ---- Quarterly Return (only for seniors) ----
+        if (isSenior) {
+          const monthDiff =
+            (currentMonth.getFullYear() - firstReturnMonth.getFullYear()) * 12 +
+            (currentMonth.getMonth() - firstReturnMonth.getMonth());
+
+          if (monthDiff % 3 === 0) {
+            const quarterlyROI = parseFloat(plan.annualBonusPercent) / 4;
+            const quarterlyReturnAmount = (effectiveAmount * quarterlyROI) / 100;
+
+            await Return.create(
+              {
+                investmentId: investment.id,
+                userId: user.id,
+                month: currentMonth,
+                amount: quarterlyReturnAmount,
+                type: 'quarterly_senior',
+                monthNo: monthNumber,
+                ROI: quarterlyROI * quarterNumber,
+                paidOn: null,
+              },
+              { transaction }
+            );
+            quarterNumber++;
+          }
+        }
+
+        monthNumber++;
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+      }
+    }
+
+    // 10. Update referral if amount changed and user has referrerId
+    if (amountChanged && user.referrerId) {
+      // Find existing referral
+      const existingReferral = await Referral.findOne({
+        where: {
+          referrerId: user.referrerId,
+          referredUserId: user.id,
+        },
+        transaction,
+      });
+
+      const rewardValue = (effectiveAmount * 0.01).toFixed(2);
+      const rewardPoints = Math.round(effectiveAmount * 0.01);
+
+      if (existingReferral) {
+        await existingReferral.update(
+          {
+            investmentAmount: effectiveAmount,
+            rewardPoints,
+            rewardValue,
+            expireDate: finalMaturityDate,
+          },
+          { transaction }
+        );
+      } else {
+        // Create new referral if none exists (edge case)
+        await Referral.create(
+          {
+            referrerId: user.referrerId,
+            referredUserId: user.id,
+            investmentAmount: effectiveAmount,
+            rewardPoints,
+            rewardValue,
+            expireDate: finalMaturityDate,
+            rewardType: 'points',
+          },
+          { transaction }
+        );
+      }
+    }
+
+    await transaction.commit();
+
+    // Reload investment with associations for response
+    const updatedInvestment = await Investment.findByPk(investment.id, {
+      include: [
+        { model: User, as: 'user' },
+        { model: Plan, as: 'plan' },
+      ],
     });
 
-    return successResponse(res, investment, 'Investment updated successfully');
+    return successResponse(res, updatedInvestment, 'Investment updated successfully');
   } catch (error) {
+    await transaction.rollback();
+    console.error('Error updating investment:', error);
     return errorResponse(res, error.message, 500);
   }
 };
-
 /**
  * Delete investment (admin only)
  */
 const deleteInvestment = async (req, res) => {
+  const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const investment = await Investment.findByPk(id);
+    const { force } = req.query; // ?force=true to override safety checks
+    const isForceDelete = force === 'true';
+
+    // 1. Find investment
+    const investment = await Investment.findByPk(id, { transaction });
     if (!investment) {
+      await transaction.rollback();
       return errorResponse(res, 'Investment not found', 404);
     }
 
-    // Check if investment has any returns (maybe prevent deletion if returns exist)
-    const returnCount = await Return.count({ where: { investmentId: id } });
-    if (returnCount > 0) {
-      return errorResponse(res, 'Cannot delete investment with existing returns. Close it instead.', 400);
-    }
+    // 4. Delete related Returns (cascade)
+    const deletedReturns = await Return.destroy({
+      where: { investmentId: id },
+      transaction,
+    });
 
-    await investment.destroy();
-    return successResponse(res, null, 'Investment deleted successfully');
+    // 5. Delete related Referrals — only if the referred user matches this investment's user
+
+    // 6. Delete the investment
+    await investment.destroy({ transaction });
+
+    // 7. Commit
+    await transaction.commit();
+
+    return successResponse(
+      res,
+      {
+        investmentId: id,
+        deletedReturnsCount: deletedReturns,
+        forceDeleted: isForceDelete,
+      },
+      'Investment deleted successfully'
+    );
   } catch (error) {
+    await transaction.rollback();
+    console.error('Error deleting investment:', error);
     return errorResponse(res, error.message, 500);
   }
 };
-
 /**
  * Get all investments (admin only)
  */
