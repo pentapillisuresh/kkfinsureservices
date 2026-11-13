@@ -31,6 +31,7 @@ const partnerTierRoutes = require('./src/routes/PartnerTierRoutes');
 const returnRoutes = require('./src/routes/ReturnRoutes');
 const userPointRoutes = require('./src/routes/UserPointRoute');
 const bankDetailRoutes = require('./src/routes/BankDetailRoute');
+const investmentFormRoutes = require('./src/routes/investmentFormRoutes');
 
 const { initializeScheduler } = require('./src/utils/scheduler');
 
@@ -150,6 +151,7 @@ app.use('/api/partner-tiers', partnerTierRoutes);
 app.use('/api/returns', returnRoutes);
 app.use('/api/user-points', userPointRoutes);
 app.use('/api/bank-details', bankDetailRoutes);
+app.use('/api/investment-forms', investmentFormRoutes);
 
 /* ===========================================================
    404
