@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
 const sendFormPdfEmail = async (investorName, pdfUrl) => {
   const mailOptions = {
     from: `"KK Finsure Support" <${process.env.EMAIL_USER}>`,
-    to: 'supportkkfinsur@gmail.com',
+    to: process.env.EMAIL_USER,
     subject: `New Investment Form Submitted - ${investorName}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
