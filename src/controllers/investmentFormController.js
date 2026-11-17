@@ -1,8 +1,13 @@
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
-const InvestmentForm = require('../models/InvestmentForm');
-const User = require('../models/User');
-const Plan = require('../models/Plan');
+const { User, Plan, InvestmentForm } = require('../models');
+const fs = require('fs');
+const generateFormPdf = require('../utils/generateFormPdf'); 
+const path = require('path');
+const { sendFormPdfEmail } = require('../utils/emailService'); // Import email service
+
+// Import the utilit
+
 const { successResponse, errorResponse } = require('../middleware/responseFormatter');
 
 /**
@@ -36,6 +41,37 @@ const createForm = async (req, res) => {
 
     // 3. Create the form
     const newForm = await InvestmentForm.create(formData);
+    // 4. Generate PDF
+    try {
+      // Ensure uploads directory for PDFs exists
+      const pdfDir = path.join(__dirname, '../../uploads/generated-forms');
+      console.log("path::",pdfDir)
+      if (!fs.existsSync(pdfDir)) {
+        fs.mkdirSync(pdfDir, { recursive: true });
+      }
+
+      const pdfFileName = `form-${newForm.id}-${Date.now()}.pdf`;
+      const pdfFilePath = path.join(pdfDir, pdfFileName);
+
+      // Generate the PDF file
+      await generateFormPdf(newForm.toJSON(), pdfFilePath);
+
+      // 5. Update the DB record with the PDF path
+      const relativePath = `uploads/generated-forms/${pdfFileName}`;
+      newForm.attachedFormFile = relativePath;
+      await newForm.save();
+
+      // 5. Construct Public URL for Email
+      // Make sure process.env.BASE_URL is set in your .env (e.g., https://service.kkfinsure.org)
+      const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+      const pdfPublicUrl = `${baseUrl}/${relativePath}`;
+
+      // 6. Send Email asynchronously (don't await, so the API response is fast)
+      sendFormPdfEmail(newForm.investorName, pdfPublicUrl);
+
+    } catch (pdfError) {
+      console.error('PDF Generation or Email Failed:', pdfError);
+    }
 
     return successResponse(res, newForm, 'Investment form submitted successfully', 201);
   } catch (error) {
@@ -161,11 +197,11 @@ const deleteForm = async (req, res) => {
 const updateFormDocuments = async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      attachedFormFile, 
-      investorDocumentPath, 
-      nomineeDocumentPath, 
-      isDisclimerCheck 
+    const {
+      attachedFormFile,
+      investorDocumentPath,
+      nomineeDocumentPath,
+      isDisclimerCheck
     } = req.body;
 
     const form = await InvestmentForm.findByPk(id);

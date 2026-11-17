@@ -13,6 +13,12 @@ router.post(
   fileController.uploadSingle
 );
 router.post(
+  '/investerForm/single',
+  upload.single('file'),
+  fileController.uploadSingle
+);
+
+router.post(
   '/multiple',
   authenticate,
   authorizeAdmin,
