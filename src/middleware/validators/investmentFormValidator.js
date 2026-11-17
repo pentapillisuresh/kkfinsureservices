@@ -10,7 +10,7 @@ const validateInvestmentForm = (req, res, next) => {
     age: Joi.number().integer().min(18).allow(null, ''),
     dateOfBirth: Joi.date().iso().allow(null, ''),
     isSeniorCitizen: Joi.boolean().default(false),
-    panCardNo: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/).allow(null, ''),
+    panCardNo: Joi.string().allow(null, ''),
     investorAadhar: Joi.string().pattern(/^[0-9]{12}$/).allow(null, ''),
     investorEmail: Joi.string().email().required(),
     investorAddress: Joi.string().allow(null, ''),
